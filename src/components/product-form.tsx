@@ -113,6 +113,7 @@ export function ProductForm() {
         onClose={() => setScanOpen(false)}
         onScan={(value) => setSku(value)}
         title="Scan SKU / barcode"
+        variant="modal"
       />
     </>
   );
