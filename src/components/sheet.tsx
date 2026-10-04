@@ -8,8 +8,6 @@ type SheetProps = {
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** Sticky actions below the scrollable body */
-  footer?: ReactNode;
   /** Wider sheet for forms with more content */
   size?: "sm" | "md" | "lg";
 };
@@ -25,7 +23,6 @@ export function Sheet({
   title,
   onClose,
   children,
-  footer,
   size = "md",
 }: SheetProps) {
   const titleId = useId();
@@ -74,18 +71,9 @@ export function Sheet({
             Close
           </button>
         </div>
-        <div
-          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 ${
-            footer ? "" : "pb-[max(1rem,env(safe-area-inset-bottom))]"
-          }`}
-        >
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">
           {children}
         </div>
-        {footer ? (
-          <div className="shrink-0 border-t border-[var(--line)] bg-[var(--surface)] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
-            {footer}
-          </div>
-        ) : null}
       </div>
     </div>,
     document.body,

@@ -7,7 +7,6 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ProductInfoDialog } from "@/components/product-info-dialog";
 import { QtyDialog } from "@/components/qty-dialog";
 import { QrScanner } from "@/components/qr-scanner";
-import { Sheet } from "@/components/sheet";
 import { useCart } from "@/components/cart-provider";
 import { formatINR } from "@/lib/money";
 import type { Product } from "@/lib/types";
@@ -87,57 +86,51 @@ export function ProductGrid({ products }: { products: Product[] }) {
       {items.map((item) => (
         <li
           key={item.productId}
-          className="rounded-xl bg-[var(--surface-muted)] px-3 py-2.5"
+          className="flex items-center gap-2 rounded-xl bg-[var(--surface-muted)] px-3 py-2"
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate font-medium">{item.name}</p>
-              <p className="text-xs text-[var(--ink-muted)]">
-                {formatINR(item.sellPrice)} each
-              </p>
-            </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{item.name}</p>
+            <p className="text-xs text-[var(--ink-muted)]">
+              {formatINR(item.sellPrice)} each
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => removeItem(item.productId)}
-              className="-mr-1 min-h-11 min-w-11 rounded-lg text-sm font-semibold text-red-700"
-              aria-label={`Remove ${item.name}`}
+              onClick={() => setQty(item.productId, item.qty - 1)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface)] text-lg font-semibold"
+              aria-label={`Decrease ${item.name}`}
             >
-              Remove
+              −
+            </button>
+            <span className="w-7 text-center font-semibold">{item.qty}</span>
+            <button
+              type="button"
+              onClick={() => setQty(item.productId, item.qty + 1)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface)] text-lg font-semibold"
+              aria-label={`Increase ${item.name}`}
+            >
+              +
             </button>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setQty(item.productId, item.qty - 1)}
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold"
-                aria-label={`Decrease ${item.name}`}
-              >
-                −
-              </button>
-              <span className="min-w-8 text-center text-base font-semibold">
-                {item.qty}
-              </span>
-              <button
-                type="button"
-                onClick={() => setQty(item.productId, item.qty + 1)}
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold"
-                aria-label={`Increase ${item.name}`}
-              >
-                +
-              </button>
-            </div>
-            <span className="text-base font-semibold tabular-nums">
-              {formatINR(item.qty * item.sellPrice)}
-            </span>
-          </div>
+          <span className="w-16 shrink-0 text-right font-semibold">
+            {formatINR(item.qty * item.sellPrice)}
+          </span>
+          <button
+            type="button"
+            onClick={() => removeItem(item.productId)}
+            className="text-xs font-medium text-red-700"
+            aria-label={`Remove ${item.name}`}
+          >
+            ✕
+          </button>
         </li>
       ))}
     </ul>
   );
 
   return (
-    <div className="space-y-3 pb-28 sm:space-y-4 sm:pb-8">
+    <div className={`space-y-3 sm:space-y-4 sm:pb-8 ${cartExpanded ? "pb-80" : "pb-28"}`}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight sm:text-3xl">
@@ -163,9 +156,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
       <QrScanner
         open
         variant="inline"
-        paused={
-          Boolean(pending) || Boolean(infoProduct) || confirmClear || cartExpanded
-        }
+        paused={Boolean(pending) || Boolean(infoProduct) || confirmClear}
         onScan={handleScan}
         title="Scan to add"
       />
@@ -272,88 +263,60 @@ export function ProductGrid({ products }: { products: Product[] }) {
         ) : null}
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 sm:hidden">
-        <div className="sell-checkout-dock border-t border-[var(--line)] pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto max-w-6xl px-3 pt-2.5 pb-3">
-            {itemCount === 0 ? (
-              <p className="rounded-2xl bg-[var(--surface-muted)] px-4 py-3 text-sm text-[var(--ink-muted)]">
-                Cart empty — scan or add items to checkout
-              </p>
-            ) : (
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCartExpanded(true)}
-                  className="min-w-0 rounded-2xl bg-[var(--surface-muted)] px-3.5 py-2.5 text-left"
-                  aria-expanded={cartExpanded}
-                  aria-haspopup="dialog"
-                >
-                  <p className="text-xs font-medium text-[var(--ink-muted)]">
-                    Review cart · {itemCount} item{itemCount === 1 ? "" : "s"}
-                  </p>
-                  <p className="truncate text-xl font-semibold tabular-nums leading-tight">
-                    {formatINR(totals.payable)}
-                  </p>
-                </button>
-                <Link
-                  href="/checkout"
-                  prefetch
-                  className="inline-flex min-h-14 min-w-[7.5rem] items-center justify-center rounded-2xl bg-[var(--ink)] px-5 text-sm font-semibold text-[var(--surface)]"
-                >
-                  Checkout
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <Sheet
-        open={cartExpanded}
-        onClose={() => setCartExpanded(false)}
-        title="Cart"
-        size="lg"
-        footer={
-          itemCount === 0 ? null : (
-            <div className="grid grid-cols-[auto_1fr] gap-2">
+      {/* Mobile sticky cart — expand on same page */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)] sm:hidden">
+        {cartExpanded ? (
+          <div className="border-b border-[var(--line)] px-3 pt-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold">Cart items</p>
               <button
                 type="button"
-                onClick={() => setConfirmClear(true)}
-                className="min-h-12 rounded-xl px-3 text-sm font-semibold text-red-700"
+                onClick={() => setCartExpanded(false)}
+                className="text-sm font-medium text-[var(--ink-muted)]"
               >
-                Clear
+                Collapse
               </button>
-              <Link
-                href="/checkout"
-                prefetch
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[var(--ink)] px-4 text-sm font-semibold text-[var(--surface)]"
-              >
-                Checkout {formatINR(totals.payable)}
-              </Link>
             </div>
-          )
-        }
-      >
-        {items.length > 0 ? (
-          <>
-            {cartLines}
-            <dl className="mt-4 space-y-1.5 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-[var(--ink-muted)]">Est. profit</dt>
-                <dd className="tabular-nums">{formatINR(totals.profit)}</dd>
-              </div>
-              <div className="flex justify-between gap-3 text-base font-semibold">
-                <dt>Total</dt>
-                <dd className="tabular-nums">{formatINR(totals.payable)}</dd>
-              </div>
-            </dl>
-          </>
-        ) : (
-          <p className="py-8 text-center text-sm text-[var(--ink-muted)]">
-            Cart is empty.
-          </p>
-        )}
-      </Sheet>
+            <div className="max-h-52 overflow-y-auto pb-3">
+              {items.length > 0 ? (
+                cartLines
+              ) : (
+                <p className="py-4 text-center text-sm text-[var(--ink-muted)]">
+                  Cart is empty.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mx-auto flex max-w-6xl items-center gap-2 p-3">
+          <button
+            type="button"
+            onClick={() => setCartExpanded((v) => !v)}
+            className="min-w-0 flex-1 rounded-xl bg-[var(--surface-muted)] px-3 py-2 text-left"
+            aria-expanded={cartExpanded}
+          >
+            <p className="text-xs text-[var(--ink-muted)]">
+              {itemCount} item{itemCount === 1 ? "" : "s"} · tap to{" "}
+              {cartExpanded ? "hide" : "expand"}
+            </p>
+            <p className="truncate text-lg font-semibold">
+              {formatINR(totals.payable)}
+            </p>
+          </button>
+          <Link
+            href="/checkout"
+            prefetch
+            className={`rounded-xl px-5 py-3 text-sm font-semibold ${
+              itemCount === 0
+                ? "pointer-events-none bg-[var(--surface-muted)] text-[var(--ink-muted)]"
+                : "bg-[var(--ink)] text-[var(--surface)]"
+            }`}
+          >
+            Checkout
+          </Link>
+        </div>
+      </div>
 
       {pending ? (
         <QtyDialog
