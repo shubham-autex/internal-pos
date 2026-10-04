@@ -7,6 +7,11 @@ import { useCart } from "@/components/cart-provider";
 const tabs = [
   { href: "/", label: "Sell", match: (path: string) => path === "/" },
   {
+    href: "/dashboard",
+    label: "Stats",
+    match: (path: string) => path.startsWith("/dashboard"),
+  },
+  {
     href: "/orders",
     label: "Orders",
     match: (path: string) => path.startsWith("/orders"),
@@ -43,6 +48,16 @@ function TabIcon({ label, active }: { label: string; active: boolean }) {
         <svg {...common}>
           <path d="M4 7h16l-1.2 12.2a2 2 0 0 1-2 1.8H7.2a2 2 0 0 1-2-1.8L4 7Z" />
           <path d="M9 7V5a3 3 0 0 1 6 0v2" />
+        </svg>
+      );
+    case "Stats":
+      return (
+        <svg {...common}>
+          <path d="M4 19V5" />
+          <path d="M4 19h16" />
+          <path d="M8 15v-4" />
+          <path d="M12 15V8" />
+          <path d="M16 15v-6" />
         </svg>
       );
     case "Orders":
@@ -86,7 +101,7 @@ export function MobileBottomNav() {
       className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--line)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)] sm:hidden"
       aria-label="Primary"
     >
-      <ul className="mx-auto grid max-w-6xl grid-cols-4">
+      <ul className="mx-auto grid max-w-6xl grid-cols-5">
         {tabs.map((tab) => {
           const active = tab.match(pathname);
           return (

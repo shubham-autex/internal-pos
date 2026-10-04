@@ -22,6 +22,8 @@ export type Product = {
   /** Operating expense as a percent of sell price (0–100). */
   expense_percent: number;
   stock: number;
+  /** Labels for dashboard grouping — same tag rolls up across products. */
+  tags: string[];
   active: boolean;
   created_at: string;
   /** Populated for combos when loaded with BOM. */

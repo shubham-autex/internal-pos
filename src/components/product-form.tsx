@@ -10,6 +10,7 @@ import {
 import { QrScanner } from "@/components/qr-scanner";
 import { deriveComboCosting, comboAvailableStock } from "@/lib/combo";
 import { formatINR } from "@/lib/money";
+import { formatTagsInput } from "@/lib/tags";
 import type { Product, ProductKind } from "@/lib/types";
 
 const initial: ProductActionState = {};
@@ -206,6 +207,19 @@ export function ProductForm({
             defaultValue={product?.description ?? ""}
             className="w-full resize-y rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">Tags</span>
+          <input
+            name="tags"
+            defaultValue={formatTagsInput(product?.tags)}
+            placeholder="e.g. snack, hot, combo-deal"
+            className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          />
+          <span className="mt-1 block text-xs text-[var(--ink-muted)]">
+            Comma-separated. Same tag groups products together on the dashboard.
+          </span>
         </label>
 
         {isCombo ? (

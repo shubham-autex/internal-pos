@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { deriveComboCosting } from "@/lib/combo";
 import { createClient } from "@/lib/supabase/server";
+import { parseTagsInput } from "@/lib/tags";
 import type { ProductKind } from "@/lib/types";
 
 const productSchema = z.object({
@@ -19,6 +20,7 @@ const productSchema = z.object({
     .max(100, "Expense % cannot exceed 100")
     .default(0),
   stock: z.coerce.number().int().min(0).default(0),
+  tags: z.array(z.string()).default([]),
 });
 
 const componentSchema = z.object({
@@ -65,6 +67,7 @@ function parseProductForm(formData: FormData) {
     sell_price: formData.get("sell_price"),
     expense_percent: formData.get("expense_percent") || 0,
     stock: formData.get("stock") || 0,
+    tags: parseTagsInput(String(formData.get("tags") ?? "")),
   });
 }
 
@@ -73,6 +76,7 @@ function revalidateProductPaths(productId?: string) {
   revalidatePath("/products");
   revalidatePath("/products/new");
   revalidatePath("/products/bulk");
+  revalidatePath("/dashboard");
   if (productId) {
     revalidatePath(`/products/${productId}`);
   }
@@ -248,6 +252,7 @@ export async function createProduct(
       sell_price: parsed.data.sell_price,
       expense_percent,
       stock,
+      tags: parsed.data.tags,
       active: true,
     })
     .select("id")
@@ -339,6 +344,7 @@ export async function updateProduct(
       sell_price: parsed.data.sell_price,
       expense_percent,
       stock,
+      tags: parsed.data.tags,
     })
     .eq("id", productId);
 

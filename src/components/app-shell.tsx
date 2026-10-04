@@ -24,6 +24,12 @@ export function AppShell({ children, email }: AppShellProps) {
           </Link>
           <nav className="hidden items-center justify-end gap-1 sm:flex sm:gap-2">
             <Link
+              href="/dashboard"
+              className="rounded-xl px-2.5 py-2 text-sm font-medium text-[var(--ink)] active:bg-[var(--surface-muted)] sm:px-3"
+            >
+              Dashboard
+            </Link>
+            <Link
               href="/products"
               className="rounded-xl px-2.5 py-2 text-sm font-medium text-[var(--ink)] active:bg-[var(--surface-muted)] sm:px-3"
             >

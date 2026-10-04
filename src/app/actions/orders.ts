@@ -282,5 +282,6 @@ export async function createOrder(
   revalidatePath("/");
   revalidatePath("/orders");
   revalidatePath("/products");
+  revalidatePath("/dashboard");
   return { ok: true, orderId: order.id };
 }

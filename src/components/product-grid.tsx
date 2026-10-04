@@ -107,10 +107,10 @@ export function ProductGrid({ products }: { products: Product[] }) {
             key={item.productId}
             className="rounded-xl bg-[var(--surface-muted)] px-3 py-2.5"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium">{item.name}</p>
-                <p className="text-xs text-[var(--ink-muted)]">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="break-words font-medium leading-snug">{item.name}</p>
+                <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
                   {formatINR(item.sellPrice)} each ·{" "}
                   <span
                     className={
@@ -124,7 +124,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
               <button
                 type="button"
                 onClick={() => removeItem(item.productId)}
-                className="-mr-1 min-h-11 min-w-11 rounded-lg text-sm font-semibold text-red-700"
+                className="-mr-1 shrink-0 rounded-lg px-2 py-2 text-sm font-semibold text-red-700"
                 aria-label={`Remove ${item.name}`}
               >
                 Remove

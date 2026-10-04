@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enrichComboStock } from "@/lib/combo";
+import { asTagList } from "@/lib/tags";
 import type { Product, ProductComponentRef, ProductKind } from "@/lib/types";
 
 function asProduct(row: Record<string, unknown>): Product {
@@ -13,6 +14,7 @@ function asProduct(row: Record<string, unknown>): Product {
     sell_price: Number(row.sell_price) || 0,
     expense_percent: Number(row.expense_percent) || 0,
     stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
+    tags: asTagList(row.tags),
     active: Boolean(row.active),
     created_at: String(row.created_at ?? ""),
   };

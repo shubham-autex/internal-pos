@@ -111,29 +111,29 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold">
+    <div className="grid gap-4 sm:gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 sm:p-5">
+        <div className="mb-3 flex items-start justify-between gap-2 sm:mb-4 sm:gap-3">
+          <div className="min-w-0">
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold sm:text-3xl">
               Checkout
             </h1>
-            <p className="text-sm text-[var(--ink-muted)]">
+            <p className="text-xs text-[var(--ink-muted)] sm:text-sm">
               Review cart, then collect payment.
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={() => setConfirmClear(true)}
-              className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-medium text-red-700"
+              className="rounded-xl border border-[var(--line)] px-2.5 py-2 text-sm font-medium text-red-700 sm:px-3"
             >
               Clear
             </button>
             <button
               type="button"
               onClick={() => setProfitOpen(true)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-sm font-bold"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] text-sm font-bold sm:h-11 sm:w-11"
               aria-label="Profit analysis and discounts"
               title="Profit & discounts"
             >
@@ -146,67 +146,75 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
           {items.map((item) => {
             const left = Math.max(0, item.stock - item.qty);
             return (
-              <li key={item.productId} className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="text-xs text-[var(--ink-muted)]">
-                    {formatINR(item.sellPrice)} × {item.qty}
-                    {" · "}
-                    <span
-                      className={
-                        left <= 0 ? "font-medium text-red-700" : "font-medium"
-                      }
-                    >
-                      {left <= 0 ? "none left" : `${left} left`}
-                    </span>
-                  </p>
+              <li key={item.productId} className="py-3">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words font-medium leading-snug">
+                      {item.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
+                      {formatINR(item.sellPrice)} × {item.qty}
+                      {" · "}
+                      <span
+                        className={
+                          left <= 0 ? "font-medium text-red-700" : "font-medium"
+                        }
+                      >
+                        {left <= 0 ? "none left" : `${left} left`}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] sm:h-9 sm:w-9"
+                        onClick={() => setQty(item.productId, item.qty - 1)}
+                        aria-label={`Decrease ${item.name}`}
+                      >
+                        −
+                      </button>
+                      <span className="w-8 text-center text-sm font-semibold tabular-nums">
+                        {item.qty}
+                      </span>
+                      <button
+                        type="button"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] disabled:opacity-40 sm:h-9 sm:w-9"
+                        disabled={item.qty >= item.stock}
+                        onClick={() => setQty(item.productId, item.qty + 1)}
+                        aria-label={`Increase ${item.name}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <p className="min-w-[4.75rem] shrink-0 text-right font-semibold tabular-nums">
+                      {formatINR(item.sellPrice * item.qty)}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    className="h-9 w-9 rounded-lg border border-[var(--line)]"
-                    onClick={() => setQty(item.productId, item.qty - 1)}
-                  >
-                    −
-                  </button>
-                  <span className="w-8 text-center text-sm font-semibold">
-                    {item.qty}
-                  </span>
-                  <button
-                    type="button"
-                    className="h-9 w-9 rounded-lg border border-[var(--line)] disabled:opacity-40"
-                    disabled={item.qty >= item.stock}
-                    onClick={() => setQty(item.productId, item.qty + 1)}
-                  >
-                    +
-                  </button>
-                </div>
-                <p className="w-20 text-right font-semibold">
-                  {formatINR(item.sellPrice * item.qty)}
-                </p>
               </li>
             );
           })}
         </ul>
 
         <dl className="mt-4 space-y-2 text-sm">
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-3">
             <dt className="text-[var(--ink-muted)]">Subtotal</dt>
-            <dd>{formatINR(totals.subtotal)}</dd>
+            <dd className="tabular-nums">{formatINR(totals.subtotal)}</dd>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-3">
             <dt className="text-[var(--ink-muted)]">Discount</dt>
-            <dd>−{formatINR(totals.discountTotal)}</dd>
+            <dd className="tabular-nums">−{formatINR(totals.discountTotal)}</dd>
           </div>
-          <div className="flex justify-between text-base font-semibold">
+          <div className="flex justify-between gap-3 text-base font-semibold">
             <dt>Total</dt>
-            <dd>{formatINR(totals.payable)}</dd>
+            <dd className="tabular-nums">{formatINR(totals.payable)}</dd>
           </div>
         </dl>
       </section>
 
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5">
-        <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
+      <section className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 sm:p-5">
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold sm:text-xl">
           Payment
         </h2>
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -239,7 +247,7 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
             <p className="text-sm text-[var(--ink-muted)]">
               Show this QR. Amount includes discounts. Set your UPI id in env.
             </p>
-            <div className="flex justify-center rounded-2xl bg-white p-4">
+            <div className="flex justify-center rounded-2xl bg-white p-3 sm:p-4">
               {qrDataUrl ? (
                 <Image
                   src={qrDataUrl}
@@ -247,17 +255,20 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
                   width={280}
                   height={280}
                   unoptimized
+                  className="h-auto w-full max-w-[220px] sm:max-w-[280px]"
                 />
               ) : (
-                <div className="flex h-[280px] w-[280px] items-center justify-center text-sm text-[var(--ink-muted)]">
+                <div className="flex aspect-square w-full max-w-[220px] items-center justify-center text-sm text-[var(--ink-muted)] sm:max-w-[280px]">
                   Generating QR…
                 </div>
               )}
             </div>
-            <p className="text-center text-sm">
+            <p className="break-all text-center text-sm">
               {upiName} · {upiId}
               <br />
-              <span className="font-semibold">{formatINR(totals.payable)}</span>
+              <span className="font-semibold tabular-nums">
+                {formatINR(totals.payable)}
+              </span>
             </p>
             <button
               type="button"

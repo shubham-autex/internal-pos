@@ -43,6 +43,18 @@ export function ProductList({ products }: { products: Product[] }) {
                   <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
                     {product.sku} · {formatINR(Number(product.sell_price))}
                   </p>
+                  {product.tags.length > 0 ? (
+                    <p className="mt-1 flex flex-wrap gap-1">
+                      {product.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-md bg-[var(--surface-muted)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </p>
+                  ) : null}
                   <p
                     className={`mt-1 text-sm font-medium ${
                       stock <= 0 ? "text-red-700" : "text-[var(--ink)]"

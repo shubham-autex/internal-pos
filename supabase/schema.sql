@@ -13,6 +13,7 @@ create table if not exists public.products (
   sell_price numeric(12, 2) not null check (sell_price >= 0),
   expense_percent numeric(5, 2) not null default 0 check (expense_percent >= 0 and expense_percent <= 100),
   stock integer not null default 0,
+  tags text[] not null default '{}',
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -61,6 +62,7 @@ create table if not exists public.order_items (
 
 create index if not exists products_sku_idx on public.products (sku);
 create index if not exists products_active_idx on public.products (active);
+create index if not exists products_tags_gin_idx on public.products using gin (tags);
 create index if not exists orders_created_at_idx on public.orders (created_at desc);
 create index if not exists order_items_order_id_idx on public.order_items (order_id);
 
