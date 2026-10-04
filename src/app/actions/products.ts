@@ -19,11 +19,16 @@ export type ProductActionState = {
   productId?: string;
 };
 
-export async function createProduct(
-  _prev: ProductActionState,
-  formData: FormData,
-): Promise<ProductActionState> {
-  const parsed = productSchema.safeParse({
+async function requireUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return { supabase, user };
+}
+
+function parseProductForm(formData: FormData) {
+  return productSchema.safeParse({
     name: formData.get("name"),
     sku: formData.get("sku"),
     description: formData.get("description") || undefined,
@@ -31,16 +36,27 @@ export async function createProduct(
     sell_price: formData.get("sell_price"),
     stock: formData.get("stock") || 0,
   });
+}
 
+function revalidateProductPaths(productId?: string) {
+  revalidatePath("/");
+  revalidatePath("/products");
+  revalidatePath("/products/new");
+  if (productId) {
+    revalidatePath(`/products/${productId}`);
+  }
+}
+
+export async function createProduct(
+  _prev: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  const parsed = parseProductForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid product" };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const { supabase, user } = await requireUser();
   if (!user) {
     return { error: "You must be signed in" };
   }
@@ -66,7 +82,71 @@ export async function createProduct(
     return { error: error.message };
   }
 
-  revalidatePath("/");
-  revalidatePath("/products/new");
+  revalidateProductPaths(data.id);
   return { success: true, productId: data.id };
+}
+
+export async function updateProduct(
+  _prev: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  const productId = String(formData.get("id") ?? "");
+  if (!productId) {
+    return { error: "Missing product id" };
+  }
+
+  const parsed = parseProductForm(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid product" };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return { error: "You must be signed in" };
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .update({
+      name: parsed.data.name,
+      sku: parsed.data.sku,
+      description: parsed.data.description ?? null,
+      cost_price: parsed.data.cost_price,
+      sell_price: parsed.data.sell_price,
+      stock: parsed.data.stock,
+    })
+    .eq("id", productId);
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "A product with this SKU already exists" };
+    }
+    return { error: error.message };
+  }
+
+  revalidateProductPaths(productId);
+  return { success: true, productId };
+}
+
+export async function deleteProduct(productId: string): Promise<ProductActionState> {
+  if (!productId) {
+    return { error: "Missing product id" };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return { error: "You must be signed in" };
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .update({ active: false })
+    .eq("id", productId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidateProductPaths(productId);
+  return { success: true, productId };
 }

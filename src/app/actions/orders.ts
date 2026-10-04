@@ -16,6 +16,7 @@ const orderSchema = z.object({
         sellPrice: z.number(),
         costPrice: z.number(),
         qty: z.number().int().positive(),
+        stock: z.number().int().nonnegative().optional(),
       }),
     )
     .min(1),
@@ -48,10 +49,54 @@ export async function createOrder(
 
   const { items, discountAmount, discountPercent, paymentMethod, cashTendered } =
     parsed.data;
-  const totals = computeCartTotals(items, discountAmount, discountPercent);
+  const totals = computeCartTotals(
+    items.map((item) => ({
+      ...item,
+      stock: item.stock ?? 0,
+    })),
+    discountAmount,
+    discountPercent,
+  );
 
   if (totals.payable <= 0) {
     return { ok: false, error: "Payable amount must be greater than zero" };
+  }
+
+  const productIds = [...new Set(items.map((item) => item.productId))];
+  const { data: stockRows, error: stockError } = await supabase
+    .from("products")
+    .select("id, name, stock, active")
+    .in("id", productIds);
+
+  if (stockError) {
+    return { ok: false, error: stockError.message };
+  }
+
+  const stockById = new Map(
+    (stockRows ?? []).map((row) => [
+      row.id as string,
+      {
+        name: String(row.name),
+        stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
+        active: Boolean(row.active),
+      },
+    ]),
+  );
+
+  for (const item of items) {
+    const product = stockById.get(item.productId);
+    if (!product || !product.active) {
+      return { ok: false, error: `${item.name} is no longer available` };
+    }
+    if (product.stock < item.qty) {
+      return {
+        ok: false,
+        error:
+          product.stock <= 0
+            ? `${product.name} is out of stock`
+            : `Only ${product.stock} left of ${product.name}`,
+      };
+    }
   }
 
   let cashChange: number | null = null;
@@ -104,23 +149,28 @@ export async function createOrder(
     return { ok: false, error: itemsError.message };
   }
 
-  // Best-effort stock decrement
   for (const item of items) {
-    const { data: product } = await supabase
-      .from("products")
-      .select("stock")
-      .eq("id", item.productId)
-      .maybeSingle();
-
-    if (product) {
-      await supabase
-        .from("products")
-        .update({ stock: Math.max(0, Number(product.stock) - item.qty) })
-        .eq("id", item.productId);
+    const product = stockById.get(item.productId);
+    if (!product) continue;
+    const nextStock = product.stock - item.qty;
+    if (nextStock < 0) {
+      return { ok: false, error: `Not enough stock for ${product.name}` };
     }
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({ stock: nextStock })
+      .eq("id", item.productId)
+      .gte("stock", item.qty);
+
+    if (updateError) {
+      return { ok: false, error: updateError.message };
+    }
+
+    stockById.set(item.productId, { ...product, stock: nextStock });
   }
 
   revalidatePath("/");
   revalidatePath("/orders");
+  revalidatePath("/products");
   return { ok: true, orderId: order.id };
 }
