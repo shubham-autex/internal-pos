@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { createOrder } from "@/app/actions/orders";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ProfitSheet } from "@/components/profit-sheet";
 import { useCart } from "@/components/cart-provider";
 import { formatINR, roundMoney } from "@/lib/money";
@@ -24,6 +25,7 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [doneOrderId, setDoneOrderId] = useState<string | null>(null);
   const [profitOpen, setProfitOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const tendered = Number(cashTendered) || 0;
   const change = roundMoney(Math.max(0, tendered - totals.payable));
@@ -120,15 +122,24 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
               Review cart, then collect payment.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setProfitOpen(true)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-sm font-bold"
-            aria-label="Profit analysis and discounts"
-            title="Profit & discounts"
-          >
-            i
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmClear(true)}
+              className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-medium text-red-700"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfitOpen(true)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-sm font-bold"
+              aria-label="Profit analysis and discounts"
+              title="Profit & discounts"
+            >
+              i
+            </button>
+          </div>
         </div>
 
         <ul className="divide-y divide-[var(--line)]">
@@ -309,6 +320,19 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
       </section>
 
       <ProfitSheet open={profitOpen} onClose={() => setProfitOpen(false)} />
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="Clear cart?"
+        message="This removes every item from the current cart."
+        confirmLabel="Clear cart"
+        danger
+        onCancel={() => setConfirmClear(false)}
+        onConfirm={() => {
+          clearCart();
+          setConfirmClear(false);
+        }}
+      />
     </div>
   );
 }

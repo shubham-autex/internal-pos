@@ -51,6 +51,7 @@ function productToItem(product: Product, qty: number): CartItem {
     sku: product.sku,
     sellPrice: Number(product.sell_price),
     costPrice: Number(product.cost_price),
+    expensePercent: Number(product.expense_percent) || 0,
     qty,
     stock: Math.max(0, Math.floor(Number(product.stock) || 0)),
   };
@@ -72,6 +73,7 @@ function normalizeItem(raw: Partial<CartItem>): CartItem | null {
     sku: String(raw.sku),
     sellPrice: Number(raw.sellPrice) || 0,
     costPrice: Number(raw.costPrice) || 0,
+    expensePercent: Number(raw.expensePercent) || 0,
     qty: clampedQty,
     stock,
   };
@@ -148,7 +150,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
           ...prev,
           items: prev.items.map((item) =>
             item.productId === product.id
-              ? { ...item, qty: item.qty + added, stock }
+              ? {
+                  ...item,
+                  qty: item.qty + added,
+                  stock,
+                  sellPrice: Number(product.sell_price),
+                  costPrice: Number(product.cost_price),
+                  expensePercent: Number(product.expense_percent) || 0,
+                }
               : item,
           ),
         };

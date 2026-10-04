@@ -10,6 +10,11 @@ const productSchema = z.object({
   description: z.string().trim().optional(),
   cost_price: z.coerce.number().min(0, "Cost must be 0 or more"),
   sell_price: z.coerce.number().min(0, "Sell price must be 0 or more"),
+  expense_percent: z.coerce
+    .number()
+    .min(0, "Expense % must be 0 or more")
+    .max(100, "Expense % cannot exceed 100")
+    .default(0),
   stock: z.coerce.number().int().min(0).default(0),
 });
 
@@ -34,6 +39,7 @@ function parseProductForm(formData: FormData) {
     description: formData.get("description") || undefined,
     cost_price: formData.get("cost_price"),
     sell_price: formData.get("sell_price"),
+    expense_percent: formData.get("expense_percent") || 0,
     stock: formData.get("stock") || 0,
   });
 }
@@ -69,6 +75,7 @@ export async function createProduct(
       description: parsed.data.description ?? null,
       cost_price: parsed.data.cost_price,
       sell_price: parsed.data.sell_price,
+      expense_percent: parsed.data.expense_percent,
       stock: parsed.data.stock,
       active: true,
     })
@@ -113,6 +120,7 @@ export async function updateProduct(
       description: parsed.data.description ?? null,
       cost_price: parsed.data.cost_price,
       sell_price: parsed.data.sell_price,
+      expense_percent: parsed.data.expense_percent,
       stock: parsed.data.stock,
     })
     .eq("id", productId);

@@ -10,6 +10,7 @@ create table if not exists public.products (
   description text,
   cost_price numeric(12, 2) not null check (cost_price >= 0),
   sell_price numeric(12, 2) not null check (sell_price >= 0),
+  expense_percent numeric(5, 2) not null default 0 check (expense_percent >= 0 and expense_percent <= 100),
   stock integer not null default 0,
   active boolean not null default true,
   created_at timestamptz not null default now()

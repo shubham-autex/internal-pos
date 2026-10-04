@@ -96,6 +96,10 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
                 <dt>Payable</dt>
                 <dd>{formatINR(preview.payable)}</dd>
               </div>
+              <div className="flex justify-between">
+                <dt className="text-[var(--ink-muted)]">Expense</dt>
+                <dd>−{formatINR(preview.expenseTotal)}</dd>
+              </div>
               <div className="flex justify-between font-semibold text-[var(--accent-ink)]">
                 <dt>Profit</dt>
                 <dd>{formatINR(preview.profit)}</dd>
@@ -154,9 +158,13 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
                       {formatINR(line.lineProfit)} profit
                     </p>
                   </div>
-                  <div className="mt-1 flex justify-between text-xs text-[var(--ink-muted)]">
+                  <div className="mt-1 flex justify-between gap-2 text-xs text-[var(--ink-muted)]">
                     <span>Sell {formatINR(line.lineTotal)}</span>
                     <span>Cost {formatINR(line.lineCost)}</span>
+                    <span>
+                      Exp {formatINR(line.lineExpense)}
+                      {line.expensePercent > 0 ? ` (${line.expensePercent}%)` : ""}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -174,6 +182,10 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
             <div className="flex justify-between font-semibold">
               <dt>Payable</dt>
               <dd>{formatINR(totals.payable)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-[var(--ink-muted)]">Expense</dt>
+              <dd>−{formatINR(totals.expenseTotal)}</dd>
             </div>
             <div className="flex justify-between font-semibold text-[var(--accent-ink)]">
               <dt>Profit</dt>

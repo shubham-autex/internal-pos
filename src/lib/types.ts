@@ -5,6 +5,8 @@ export type Product = {
   description: string | null;
   cost_price: number;
   sell_price: number;
+  /** Operating expense as a percent of sell price (0–100). */
+  expense_percent: number;
   stock: number;
   active: boolean;
   created_at: string;
@@ -16,6 +18,8 @@ export type CartItem = {
   sku: string;
   sellPrice: number;
   costPrice: number;
+  /** Snapshot of product expense % of sell price. */
+  expensePercent: number;
   qty: number;
   /** Snapshot of available stock when the item was last synced from a product. */
   stock: number;

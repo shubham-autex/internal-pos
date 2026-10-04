@@ -77,7 +77,7 @@ export function ProductForm({ product }: ProductFormProps) {
           />
         </label>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium">Cost ₹</span>
             <input
@@ -97,6 +97,20 @@ export function ProductForm({ product }: ProductFormProps) {
               defaultValue={product ? String(product.sell_price) : undefined}
               className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium">Expense %</span>
+            <input
+              name="expense_percent"
+              inputMode="decimal"
+              defaultValue={
+                product ? String(product.expense_percent ?? 0) : "0"
+              }
+              className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            />
+            <span className="mt-1 block text-xs text-[var(--ink-muted)]">
+              Percent of sell price used in costing.
+            </span>
           </label>
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium">Stock</span>
