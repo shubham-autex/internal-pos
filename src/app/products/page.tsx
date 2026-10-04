@@ -30,12 +30,20 @@ export default async function ProductsPage() {
               Create, edit, or remove stall items.
             </p>
           </div>
-          <Link
-            href="/products/new"
-            className="shrink-0 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-ink)]"
-          >
-            Add
-          </Link>
+          <div className="flex shrink-0 gap-2">
+            <Link
+              href="/products/bulk"
+              className="rounded-xl border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+            >
+              Bulk add
+            </Link>
+            <Link
+              href="/products/new"
+              className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-ink)]"
+            >
+              Add
+            </Link>
+          </div>
         </div>
 
         {error ? (

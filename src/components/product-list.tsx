@@ -71,9 +71,14 @@ export function ProductList({ products }: { products: Product[] }) {
       {products.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-[var(--line)] p-8 text-center text-sm text-[var(--ink-muted)]">
           No products yet.{" "}
+          <Link href="/products/bulk" className="font-semibold underline">
+            Bulk add
+          </Link>{" "}
+          or{" "}
           <Link href="/products/new" className="font-semibold underline">
-            Add one
+            add one
           </Link>
+          .
         </p>
       ) : null}
 

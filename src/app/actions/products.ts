@@ -158,3 +158,87 @@ export async function deleteProduct(productId: string): Promise<ProductActionSta
   revalidateProductPaths(productId);
   return { success: true, productId };
 }
+
+const bulkRowSchema = productSchema;
+
+export type BulkProductActionResult = {
+  error?: string;
+  success?: boolean;
+  created?: number;
+  rowErrors?: string[];
+};
+
+export async function bulkCreateProducts(
+  rows: unknown[],
+): Promise<BulkProductActionResult> {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { error: "Add at least one product row" };
+  }
+
+  if (rows.length > 200) {
+    return { error: "You can add at most 200 products at once" };
+  }
+
+  const parsedRows: z.infer<typeof bulkRowSchema>[] = [];
+  const rowErrors: string[] = [];
+  const seenSkus = new Set<string>();
+
+  rows.forEach((row, index) => {
+    const parsed = bulkRowSchema.safeParse(row);
+    if (!parsed.success) {
+      rowErrors.push(
+        `Row ${index + 1}: ${parsed.error.issues[0]?.message ?? "Invalid"}`,
+      );
+      return;
+    }
+    const skuKey = parsed.data.sku.toLowerCase();
+    if (seenSkus.has(skuKey)) {
+      rowErrors.push(`Row ${index + 1}: Duplicate SKU “${parsed.data.sku}” in this list`);
+      return;
+    }
+    seenSkus.add(skuKey);
+    parsedRows.push(parsed.data);
+  });
+
+  if (rowErrors.length > 0) {
+    return { error: "Fix the highlighted rows, then try again", rowErrors };
+  }
+
+  if (parsedRows.length === 0) {
+    return { error: "Add at least one product row" };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return { error: "You must be signed in" };
+  }
+
+  const { data, error } = await supabase
+    .from("products")
+    .insert(
+      parsedRows.map((row) => ({
+        name: row.name,
+        sku: row.sku,
+        description: row.description ?? null,
+        cost_price: row.cost_price,
+        sell_price: row.sell_price,
+        expense_percent: row.expense_percent,
+        stock: row.stock,
+        active: true,
+      })),
+    )
+    .select("id");
+
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        error: "One or more SKUs already exist. Use unique SKUs and try again.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidateProductPaths();
+  revalidatePath("/products/bulk");
+  return { success: true, created: data?.length ?? parsedRows.length };
+}
