@@ -1,13 +1,31 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { IDetectedBarcode } from "@yudiel/react-qr-scanner";
+import { getCameraConstraints, saveCameraDeviceId } from "@/lib/camera";
 
 const Scanner = dynamic(
   () => import("@yudiel/react-qr-scanner").then((m) => m.Scanner),
   { ssr: false },
 );
+
+const SCAN_FORMATS = [
+  "qr_code",
+  "code_128",
+  "code_39",
+  "ean_13",
+  "ean_8",
+  "upc_a",
+  "upc_e",
+];
+
+const SCANNER_COMPONENTS = { finder: false, torch: false, zoom: false };
+
+const SCANNER_STYLES = {
+  container: { width: "100%", height: "100%" },
+  video: { objectFit: "cover" as const },
+};
 
 type ZoomCaps = { min: number; max: number; step: number };
 
@@ -38,15 +56,25 @@ export function QrScanner({
 }: QrScannerProps) {
   const lastScanRef = useRef<{ value: string; at: number } | null>(null);
   const regionRef = useRef<HTMLDivElement>(null);
+  const [activated, setActivated] = useState(variant === "inline" || open);
   const [error, setError] = useState<string | null>(null);
   const [zoomCaps, setZoomCaps] = useState<ZoomCaps | null>(null);
   const [zoom, setZoom] = useState(1);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [constraints, setConstraints] = useState<MediaTrackConstraints>(() =>
+    getCameraConstraints(),
+  );
+
+  useEffect(() => {
+    if (open) setActivated(true);
+  }, [open]);
+
+  const streaming = open && !paused;
 
   const handleScan = useCallback(
     (codes: IDetectedBarcode[]) => {
-      if (paused) return;
+      if (!streaming) return;
       const value = codes[0]?.rawValue?.trim();
       if (!value) return;
 
@@ -58,14 +86,13 @@ export function QrScanner({
       onScan(value);
       if (variant === "modal") onClose?.();
     },
-    [onClose, onScan, paused, variant],
+    [onClose, onScan, streaming, variant],
   );
 
   // Read zoom / torch capabilities once the camera stream is ready.
   useEffect(() => {
-    if (!open) {
+    if (!streaming) {
       setZoomCaps(null);
-      setZoom(1);
       setTorchSupported(false);
       setTorchOn(false);
       return;
@@ -81,6 +108,16 @@ export function QrScanner({
       if (!track) {
         if (tries++ < 24) timer = setTimeout(readCaps, 250);
         return;
+      }
+
+      const deviceId = track.getSettings?.()?.deviceId;
+      if (deviceId) {
+        saveCameraDeviceId(deviceId);
+        setConstraints((prev) => {
+          const next = getCameraConstraints();
+          // Keep referential stability unless device targeting actually changed.
+          return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+        });
       }
 
       const caps = track.getCapabilities?.() as MediaTrackCapabilities & {
@@ -112,23 +149,25 @@ export function QrScanner({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [open]);
+  }, [streaming]);
 
-  const applyZoom = useCallback(async (next: number) => {
-    const track = getVideoTrack(regionRef.current);
-    if (!track || !zoomCaps) return;
-    const value = Math.min(zoomCaps.max, Math.max(zoomCaps.min, next));
-    try {
-      await track.applyConstraints({
-        advanced: [{ zoom: value } as MediaTrackConstraintSet],
-      });
-      setZoom(value);
-      // Torch often turns off when zoom changes on mobile.
-      setTorchOn(false);
-    } catch {
-      // Ignore unsupported zoom apply.
-    }
-  }, [zoomCaps]);
+  const applyZoom = useCallback(
+    async (next: number) => {
+      const track = getVideoTrack(regionRef.current);
+      if (!track || !zoomCaps) return;
+      const value = Math.min(zoomCaps.max, Math.max(zoomCaps.min, next));
+      try {
+        await track.applyConstraints({
+          advanced: [{ zoom: value } as MediaTrackConstraintSet],
+        });
+        setZoom(value);
+        setTorchOn(false);
+      } catch {
+        // Ignore unsupported zoom apply.
+      }
+    },
+    [zoomCaps],
+  );
 
   const toggleTorch = useCallback(async () => {
     const track = getVideoTrack(regionRef.current);
@@ -144,9 +183,13 @@ export function QrScanner({
     }
   }, [torchOn, torchSupported]);
 
-  if (!open) return null;
+  const showControls = useMemo(
+    () => streaming && (Boolean(zoomCaps) || torchSupported),
+    [streaming, torchSupported, zoomCaps],
+  );
 
-  const showControls = Boolean(zoomCaps) || torchSupported;
+  // Wait until first open so we only request camera after a user gesture.
+  if (!activated) return null;
 
   const camera = (
     <>
@@ -157,31 +200,18 @@ export function QrScanner({
         <Scanner
           onScan={handleScan}
           onError={(err) => {
-            setError(err?.message || "Camera access failed. Allow permission and try again.");
+            setError(
+              err?.message || "Camera access failed. Allow permission and try again.",
+            );
           }}
-          constraints={{
-            facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          }}
-          formats={[
-            "qr_code",
-            "code_128",
-            "code_39",
-            "ean_13",
-            "ean_8",
-            "upc_a",
-            "upc_e",
-          ]}
-          paused={paused}
+          constraints={constraints}
+          formats={SCAN_FORMATS}
+          paused={!streaming}
           allowMultiple
           scanDelay={1500}
           sound={false}
-          components={{ finder: false, torch: false, zoom: false }}
-          styles={{
-            container: { width: "100%", height: "100%" },
-            video: { objectFit: "cover" },
-          }}
+          components={SCANNER_COMPONENTS}
+          styles={SCANNER_STYLES}
         />
       </div>
 
@@ -192,7 +222,7 @@ export function QrScanner({
               <button
                 type="button"
                 aria-label="Zoom out"
-                disabled={zoom <= zoomCaps.min || paused}
+                disabled={zoom <= zoomCaps.min}
                 onClick={() => applyZoom(zoom - zoomCaps.step)}
                 className="h-9 w-9 rounded-lg text-lg font-semibold text-[var(--ink)] hover:bg-[var(--surface)] disabled:opacity-40"
               >
@@ -204,7 +234,7 @@ export function QrScanner({
               <button
                 type="button"
                 aria-label="Zoom in"
-                disabled={zoom >= zoomCaps.max || paused}
+                disabled={zoom >= zoomCaps.max}
                 onClick={() => applyZoom(zoom + zoomCaps.step)}
                 className="h-9 w-9 rounded-lg text-lg font-semibold text-[var(--ink)] hover:bg-[var(--surface)] disabled:opacity-40"
               >
@@ -220,9 +250,8 @@ export function QrScanner({
               type="button"
               aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
               aria-pressed={torchOn}
-              disabled={paused}
               onClick={toggleTorch}
-              className={`rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-40 ${
+              className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
                 torchOn
                   ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
                   : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)] hover:bg-[var(--surface)]"
@@ -238,13 +267,13 @@ export function QrScanner({
         <p className="mt-2 text-sm text-red-700" role="alert">
           {error}
         </p>
-      ) : (
+      ) : open ? (
         <p className="mt-2 text-xs text-[var(--ink-muted)] sm:text-sm">
           {paused
             ? "Scanner paused — finish quantity first."
             : "Hold a QR / barcode in front of the camera."}
         </p>
-      )}
+      ) : null}
     </>
   );
 
@@ -272,8 +301,16 @@ export function QrScanner({
     );
   }
 
+  // Keep scanner mounted after first open so the browser only prompts once.
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-4 sm:items-center">
+    <div
+      className={
+        open
+          ? "fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-4 sm:items-center"
+          : "hidden"
+      }
+      aria-hidden={!open}
+    >
       <div className="w-full max-w-md rounded-2xl bg-[var(--surface)] p-4 shadow-xl">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
