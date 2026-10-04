@@ -18,19 +18,51 @@ export function saveCameraDeviceId(deviceId: string) {
   }
 }
 
-/** Stable constraints so the scanner does not restart the stream on every render. */
+/** 720p is enough for cropped small-QR detection and is lighter on phones. */
 export function getCameraConstraints(): MediaTrackConstraints {
   const deviceId = getSavedCameraDeviceId();
+  const size = {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    aspectRatio: { ideal: 16 / 9 },
+  };
+
   if (deviceId) {
     return {
       deviceId: { ideal: deviceId },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
+      ...size,
     };
   }
   return {
     facingMode: { ideal: "environment" },
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
+    ...size,
   };
+}
+
+export async function applyPreferredFocus(track: MediaStreamTrack) {
+  const caps = track.getCapabilities?.() as MediaTrackCapabilities & {
+    focusMode?: string[];
+  };
+  const modes = caps?.focusMode;
+  if (!modes?.length) return;
+  const preferred = modes.includes("continuous")
+    ? "continuous"
+    : modes.includes("auto")
+      ? "auto"
+      : null;
+  if (!preferred) return;
+  try {
+    await track.applyConstraints({
+      advanced: [{ focusMode: preferred } as MediaTrackConstraintSet],
+    });
+  } catch {
+    // Some browsers expose the capability but reject applyConstraints.
+  }
+}
+
+/** Prefer a modest optical zoom so small printed codes fill more of the sensor. */
+export function pickDefaultOpticalZoom(min: number, max: number) {
+  if (max <= min) return min;
+  const preferred = Math.min(max, Math.max(min, 2));
+  return preferred;
 }
