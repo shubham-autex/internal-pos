@@ -46,9 +46,6 @@ body {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
-  /* Digital default zoom so small QR codes fill more of the frame */
-  transform: scale(1.85);
-  transform-origin: center center;
 }
 
 @media (min-width: 640px) {
