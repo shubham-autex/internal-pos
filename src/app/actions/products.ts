@@ -159,27 +159,31 @@ export async function deleteProduct(productId: string): Promise<ProductActionSta
   return { success: true, productId };
 }
 
-const bulkRowSchema = productSchema;
+const bulkRowSchema = productSchema.extend({
+  id: z.string().uuid().optional(),
+});
 
 export type BulkProductActionResult = {
   error?: string;
   success?: boolean;
   created?: number;
+  updated?: number;
   rowErrors?: string[];
 };
 
-export async function bulkCreateProducts(
+export async function bulkSaveProducts(
   rows: unknown[],
 ): Promise<BulkProductActionResult> {
   if (!Array.isArray(rows) || rows.length === 0) {
-    return { error: "Add at least one product row" };
+    return { error: "Nothing to save" };
   }
 
-  if (rows.length > 200) {
-    return { error: "You can add at most 200 products at once" };
+  if (rows.length > 500) {
+    return { error: "You can save at most 500 rows at once" };
   }
 
-  const parsedRows: z.infer<typeof bulkRowSchema>[] = [];
+  type ParsedBulkRow = z.infer<typeof bulkRowSchema>;
+  const parsedRows: ParsedBulkRow[] = [];
   const rowErrors: string[] = [];
   const seenSkus = new Set<string>();
 
@@ -205,7 +209,7 @@ export async function bulkCreateProducts(
   }
 
   if (parsedRows.length === 0) {
-    return { error: "Add at least one product row" };
+    return { error: "Nothing to save" };
   }
 
   const { supabase, user } = await requireUser();
@@ -213,10 +217,48 @@ export async function bulkCreateProducts(
     return { error: "You must be signed in" };
   }
 
-  const { data, error } = await supabase
-    .from("products")
-    .insert(
-      parsedRows.map((row) => ({
+  const toCreate = parsedRows.filter((row) => !row.id);
+  const toUpdate = parsedRows.filter((row) => Boolean(row.id));
+
+  if (toCreate.length > 200) {
+    return { error: "You can add at most 200 new products at once" };
+  }
+
+  let created = 0;
+  let updated = 0;
+
+  if (toCreate.length > 0) {
+    const { data, error } = await supabase
+      .from("products")
+      .insert(
+        toCreate.map((row) => ({
+          name: row.name,
+          sku: row.sku,
+          description: row.description ?? null,
+          cost_price: row.cost_price,
+          sell_price: row.sell_price,
+          expense_percent: row.expense_percent,
+          stock: row.stock,
+          active: true,
+        })),
+      )
+      .select("id");
+
+    if (error) {
+      if (error.code === "23505") {
+        return {
+          error: "One or more SKUs already exist. Use unique SKUs and try again.",
+        };
+      }
+      return { error: error.message };
+    }
+    created = data?.length ?? toCreate.length;
+  }
+
+  for (const row of toUpdate) {
+    const { error } = await supabase
+      .from("products")
+      .update({
         name: row.name,
         sku: row.sku,
         description: row.description ?? null,
@@ -224,21 +266,21 @@ export async function bulkCreateProducts(
         sell_price: row.sell_price,
         expense_percent: row.expense_percent,
         stock: row.stock,
-        active: true,
-      })),
-    )
-    .select("id");
+      })
+      .eq("id", row.id!);
 
-  if (error) {
-    if (error.code === "23505") {
-      return {
-        error: "One or more SKUs already exist. Use unique SKUs and try again.",
-      };
+    if (error) {
+      if (error.code === "23505") {
+        return {
+          error: `SKU “${row.sku}” already exists on another product.`,
+        };
+      }
+      return { error: error.message };
     }
-    return { error: error.message };
+    updated += 1;
   }
 
   revalidateProductPaths();
   revalidatePath("/products/bulk");
-  return { success: true, created: data?.length ?? parsedRows.length };
+  return { success: true, created, updated };
 }

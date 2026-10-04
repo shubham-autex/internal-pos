@@ -2,12 +2,21 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { BulkProductForm } from "@/components/bulk-product-form";
 import { createClient } from "@/lib/supabase/server";
+import type { Product } from "@/lib/types";
 
 export default async function BulkProductsPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("active", true)
+    .order("name");
+
+  const products = (data ?? []) as Product[];
 
   return (
     <AppShell email={user?.email}>
@@ -23,10 +32,17 @@ export default async function BulkProductsPage() {
             Bulk add
           </h1>
           <p className="text-sm text-[var(--ink-muted)]">
-            Add many products at once, or paste a CSV / Excel list.
+            Edit existing products in the table, or add new rows on top.
           </p>
         </div>
-        <BulkProductForm />
+
+        {error ? (
+          <p className="rounded-xl bg-red-50 px-3 py-3 text-sm text-red-800">
+            {error.message}
+          </p>
+        ) : null}
+
+        <BulkProductForm products={products} />
       </div>
     </AppShell>
   );

@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { bulkCreateProducts } from "@/app/actions/products";
+import { bulkSaveProducts } from "@/app/actions/products";
+import type { Product } from "@/lib/types";
 
 type DraftRow = {
   key: string;
+  id?: string;
   name: string;
   sku: string;
   cost_price: string;
@@ -19,7 +21,7 @@ const cellInputClass =
 
 function emptyRow(): DraftRow {
   return {
-    key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    key: `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name: "",
     sku: "",
     cost_price: "",
@@ -29,11 +31,35 @@ function emptyRow(): DraftRow {
   };
 }
 
+function productToRow(product: Product): DraftRow {
+  return {
+    key: product.id,
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    cost_price: String(product.cost_price ?? ""),
+    sell_price: String(product.sell_price ?? ""),
+    expense_percent: String(product.expense_percent ?? 0),
+    stock: String(product.stock ?? 0),
+  };
+}
+
+function snapshot(row: DraftRow) {
+  return [
+    row.name.trim(),
+    row.sku.trim(),
+    row.cost_price.trim(),
+    row.sell_price.trim(),
+    row.expense_percent.trim() || "0",
+    row.stock.trim() || "0",
+  ].join("|");
+}
+
 function looksLikeHeader(cells: string[]) {
   const joined = cells.join(" ").toLowerCase();
   return (
     joined.includes("name") &&
-    (joined.includes("sku") || joined.includes("barcode"))
+    (joined.includes("sku") || joined.includes("barcode") || joined.includes("code"))
   );
 }
 
@@ -96,41 +122,57 @@ function rowHasContent(row: DraftRow) {
   );
 }
 
-export function BulkProductForm() {
-  const router = useRouter();
-  const [rows, setRows] = useState<DraftRow[]>(() =>
-    Array.from({ length: 8 }, () => emptyRow()),
+function matchesQuery(row: DraftRow, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    row.name.toLowerCase().includes(q) || row.sku.toLowerCase().includes(q)
   );
+}
+
+export function BulkProductForm({ products }: { products: Product[] }) {
+  const router = useRouter();
+  const [rows, setRows] = useState<DraftRow[]>(() => products.map(productToRow));
+  const [baselines] = useState<Record<string, string>>(() =>
+    Object.fromEntries(products.map((p) => [p.id, snapshot(productToRow(p))])),
+  );
+  const [query, setQuery] = useState("");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowErrors, setRowErrors] = useState<string[]>([]);
-  const [created, setCreated] = useState<number | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const filledCount = useMemo(
-    () => rows.filter(rowHasContent).length,
-    [rows],
+  const visibleRows = useMemo(
+    () => rows.filter((row) => matchesQuery(row, query)),
+    [rows, query],
   );
+
+  const dirtyRows = useMemo(() => {
+    return rows.filter((row) => {
+      if (!row.id) return rowHasContent(row);
+      if (!rowHasContent(row)) return false;
+      return snapshot(row) !== baselines[row.id];
+    });
+  }, [rows, baselines]);
 
   function updateRow(key: string, field: keyof DraftRow, value: string) {
     setRows((prev) =>
       prev.map((row) => (row.key === key ? { ...row, [field]: value } : row)),
     );
+    setSuccess(null);
   }
 
   function addRows(count = 1) {
-    setRows((prev) => [
-      ...prev,
-      ...Array.from({ length: count }, () => emptyRow()),
-    ]);
+    const next = Array.from({ length: count }, () => emptyRow());
+    setRows((prev) => [...next, ...prev]);
+    setSuccess(null);
   }
 
-  function removeRow(key: string) {
-    setRows((prev) => {
-      if (prev.length <= 1) return [emptyRow()];
-      return prev.filter((row) => row.key !== key);
-    });
+  function removeRow(row: DraftRow) {
+    if (row.id) return;
+    setRows((prev) => prev.filter((item) => item.key !== row.key));
   }
 
   function applyPaste() {
@@ -141,20 +183,23 @@ export function BulkProductForm() {
     }
     setError(null);
     setRowErrors([]);
-    setCreated(null);
-    setRows(parsed);
+    setSuccess(null);
+    setRows((prev) => [...parsed, ...prev]);
     setPasteOpen(false);
     setPasteText("");
   }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (dirtyRows.length === 0) return;
+
     setBusy(true);
     setError(null);
     setRowErrors([]);
-    setCreated(null);
+    setSuccess(null);
 
-    const payload = rows.filter(rowHasContent).map((row) => ({
+    const payload = dirtyRows.map((row) => ({
+      id: row.id,
       name: row.name,
       sku: row.sku,
       cost_price: row.cost_price,
@@ -163,7 +208,7 @@ export function BulkProductForm() {
       stock: row.stock || 0,
     }));
 
-    const result = await bulkCreateProducts(payload);
+    const result = await bulkSaveProducts(payload);
     setBusy(false);
 
     if (!result.success) {
@@ -172,16 +217,36 @@ export function BulkProductForm() {
       return;
     }
 
-    setCreated(result.created ?? payload.length);
-    router.push("/products");
+    const parts: string[] = [];
+    if (result.created) parts.push(`${result.created} added`);
+    if (result.updated) parts.push(`${result.updated} updated`);
+    setSuccess(parts.length > 0 ? `Saved: ${parts.join(", ")}.` : "Saved.");
     router.refresh();
+
+    // Reload table from server so new rows get ids.
+    window.setTimeout(() => {
+      window.location.assign("/products/bulk");
+    }, 400);
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium">Search</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name or code (SKU)"
+          className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        />
+      </label>
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-[var(--ink-muted)]">
-          {filledCount} product{filledCount === 1 ? "" : "s"} ready
+          {visibleRows.length} shown
+          {query.trim() ? ` · filtered` : ` · ${rows.length} total`}
+          {dirtyRows.length > 0 ? ` · ${dirtyRows.length} changed` : ""}
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -205,7 +270,8 @@ export function BulkProductForm() {
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-sm font-medium">Paste from Excel / CSV</p>
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            One product per line: Name, SKU, Cost, Sell, Expense %, Stock
+            New rows are added on top. Format: Name, SKU, Cost, Sell, Expense %,
+            Stock
           </p>
           <textarea
             value={pasteText}
@@ -219,7 +285,7 @@ export function BulkProductForm() {
             onClick={applyPaste}
             className="mt-3 w-full rounded-xl bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-[var(--surface)]"
           >
-            Load pasted rows
+            Add pasted rows on top
           </button>
         </div>
       ) : null}
@@ -243,81 +309,122 @@ export function BulkProductForm() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
-              <tr key={row.key} className="border-t border-[var(--line)]">
-                <td className="sticky left-0 z-10 bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--ink-muted)]">
-                  {index + 1}
-                </td>
-                <td className="px-2 py-2 min-w-[10rem]">
-                  <input
-                    aria-label={`Name row ${index + 1}`}
-                    value={row.name}
-                    onChange={(e) => updateRow(row.key, "name", e.target.value)}
-                    className={cellInputClass}
-                  />
-                </td>
-                <td className="px-2 py-2 min-w-[8rem]">
-                  <input
-                    aria-label={`SKU row ${index + 1}`}
-                    value={row.sku}
-                    onChange={(e) => updateRow(row.key, "sku", e.target.value)}
-                    className={cellInputClass}
-                  />
-                </td>
-                <td className="px-2 py-2 w-24">
-                  <input
-                    aria-label={`Cost row ${index + 1}`}
-                    value={row.cost_price}
-                    inputMode="decimal"
-                    onChange={(e) =>
-                      updateRow(row.key, "cost_price", e.target.value)
-                    }
-                    className={cellInputClass}
-                  />
-                </td>
-                <td className="px-2 py-2 w-24">
-                  <input
-                    aria-label={`Sell row ${index + 1}`}
-                    value={row.sell_price}
-                    inputMode="decimal"
-                    onChange={(e) =>
-                      updateRow(row.key, "sell_price", e.target.value)
-                    }
-                    className={cellInputClass}
-                  />
-                </td>
-                <td className="px-2 py-2 w-20">
-                  <input
-                    aria-label={`Expense percent row ${index + 1}`}
-                    value={row.expense_percent}
-                    inputMode="decimal"
-                    onChange={(e) =>
-                      updateRow(row.key, "expense_percent", e.target.value)
-                    }
-                    className={cellInputClass}
-                  />
-                </td>
-                <td className="px-2 py-2 w-20">
-                  <input
-                    aria-label={`Stock row ${index + 1}`}
-                    value={row.stock}
-                    inputMode="numeric"
-                    onChange={(e) => updateRow(row.key, "stock", e.target.value)}
-                    className={cellInputClass}
-                  />
-                </td>
-                <td className="px-2 py-2">
-                  <button
-                    type="button"
-                    onClick={() => removeRow(row.key)}
-                    className="rounded-lg px-2 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-                    aria-label={`Remove row ${index + 1}`}
-                  >
-                    ×
-                  </button>
+            {visibleRows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="px-4 py-8 text-center text-sm text-[var(--ink-muted)]"
+                >
+                  {query.trim()
+                    ? "No products match this search."
+                    : "No products yet. Use + Row to add some."}
                 </td>
               </tr>
-            ))}
+            ) : (
+              visibleRows.map((row, index) => {
+                const dirty =
+                  !row.id
+                    ? rowHasContent(row)
+                    : snapshot(row) !== baselines[row.id];
+                return (
+                  <tr
+                    key={row.key}
+                    className={`border-t border-[var(--line)] ${
+                      dirty ? "bg-[var(--accent-soft)]/40" : ""
+                    }`}
+                  >
+                    <td className="sticky left-0 z-10 bg-[inherit] px-3 py-2 text-xs font-semibold text-[var(--ink-muted)]">
+                      {index + 1}
+                      {!row.id ? (
+                        <span className="ml-1 text-[10px] uppercase text-[var(--accent-ink)]">
+                          new
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="min-w-[10rem] px-2 py-2">
+                      <input
+                        aria-label={`Name row ${index + 1}`}
+                        value={row.name}
+                        onChange={(e) =>
+                          updateRow(row.key, "name", e.target.value)
+                        }
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="min-w-[8rem] px-2 py-2">
+                      <input
+                        aria-label={`SKU row ${index + 1}`}
+                        value={row.sku}
+                        onChange={(e) =>
+                          updateRow(row.key, "sku", e.target.value)
+                        }
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="w-24 px-2 py-2">
+                      <input
+                        aria-label={`Cost row ${index + 1}`}
+                        value={row.cost_price}
+                        inputMode="decimal"
+                        onChange={(e) =>
+                          updateRow(row.key, "cost_price", e.target.value)
+                        }
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="w-24 px-2 py-2">
+                      <input
+                        aria-label={`Sell row ${index + 1}`}
+                        value={row.sell_price}
+                        inputMode="decimal"
+                        onChange={(e) =>
+                          updateRow(row.key, "sell_price", e.target.value)
+                        }
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="w-20 px-2 py-2">
+                      <input
+                        aria-label={`Expense percent row ${index + 1}`}
+                        value={row.expense_percent}
+                        inputMode="decimal"
+                        onChange={(e) =>
+                          updateRow(row.key, "expense_percent", e.target.value)
+                        }
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="w-20 px-2 py-2">
+                      <input
+                        aria-label={`Stock row ${index + 1}`}
+                        value={row.stock}
+                        inputMode="numeric"
+                        onChange={(e) =>
+                          updateRow(row.key, "stock", e.target.value)
+                        }
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      {!row.id ? (
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row)}
+                          className="rounded-lg px-2 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                          aria-label={`Remove row ${index + 1}`}
+                        >
+                          ×
+                        </button>
+                      ) : (
+                        <span className="px-2 text-xs text-[var(--ink-muted)]">
+                          —
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -327,11 +434,14 @@ export function BulkProductForm() {
         onClick={() => addRows(5)}
         className="w-full rounded-xl border border-dashed border-[var(--line)] px-4 py-3 text-sm font-semibold"
       >
-        + Add 5 more rows
+        + Add 5 rows on top
       </button>
 
       {error ? (
-        <div className="rounded-xl bg-red-50 px-3 py-3 text-sm text-red-800" role="alert">
+        <div
+          className="rounded-xl bg-red-50 px-3 py-3 text-sm text-red-800"
+          role="alert"
+        >
           <p>{error}</p>
           {rowErrors.length > 0 ? (
             <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -343,20 +453,20 @@ export function BulkProductForm() {
         </div>
       ) : null}
 
-      {created ? (
-        <p className="text-sm font-medium text-emerald-800">
-          Saved {created} products.
-        </p>
+      {success ? (
+        <p className="text-sm font-medium text-emerald-800">{success}</p>
       ) : null}
 
       <button
         type="submit"
-        disabled={busy || filledCount === 0}
+        disabled={busy || dirtyRows.length === 0}
         className="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-60"
       >
         {busy
           ? "Saving…"
-          : `Save ${filledCount || ""} product${filledCount === 1 ? "" : "s"}`.trim()}
+          : dirtyRows.length === 0
+            ? "No changes"
+            : `Save ${dirtyRows.length} change${dirtyRows.length === 1 ? "" : "s"}`}
       </button>
     </form>
   );
