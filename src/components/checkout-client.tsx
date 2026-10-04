@@ -132,36 +132,50 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
         </div>
 
         <ul className="divide-y divide-[var(--line)]">
-          {items.map((item) => (
-            <li key={item.productId} className="flex items-center gap-3 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{item.name}</p>
-                <p className="text-xs text-[var(--ink-muted)]">
-                  {formatINR(item.sellPrice)} × {item.qty}
+          {items.map((item) => {
+            const left = Math.max(0, item.stock - item.qty);
+            return (
+              <li key={item.productId} className="flex items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{item.name}</p>
+                  <p className="text-xs text-[var(--ink-muted)]">
+                    {formatINR(item.sellPrice)} × {item.qty}
+                    {" · "}
+                    <span
+                      className={
+                        left <= 0 ? "font-medium text-red-700" : "font-medium"
+                      }
+                    >
+                      {left <= 0 ? "none left" : `${left} left`}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-lg border border-[var(--line)]"
+                    onClick={() => setQty(item.productId, item.qty - 1)}
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center text-sm font-semibold">
+                    {item.qty}
+                  </span>
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-lg border border-[var(--line)] disabled:opacity-40"
+                    disabled={item.qty >= item.stock}
+                    onClick={() => setQty(item.productId, item.qty + 1)}
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="w-20 text-right font-semibold">
+                  {formatINR(item.sellPrice * item.qty)}
                 </p>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  className="h-9 w-9 rounded-lg border border-[var(--line)]"
-                  onClick={() => setQty(item.productId, item.qty - 1)}
-                >
-                  −
-                </button>
-                <span className="w-8 text-center text-sm font-semibold">{item.qty}</span>
-                <button
-                  type="button"
-                  className="h-9 w-9 rounded-lg border border-[var(--line)]"
-                  onClick={() => setQty(item.productId, item.qty + 1)}
-                >
-                  +
-                </button>
-              </div>
-              <p className="w-20 text-right font-semibold">
-                {formatINR(item.sellPrice * item.qty)}
-              </p>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
 
         <dl className="mt-4 space-y-2 text-sm">

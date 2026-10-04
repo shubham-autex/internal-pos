@@ -17,6 +17,8 @@ export type CartItem = {
   sellPrice: number;
   costPrice: number;
   qty: number;
+  /** Snapshot of available stock when the item was last synced from a product. */
+  stock: number;
 };
 
 export type PaymentMethod = "upi" | "cash";

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Sheet } from "@/components/sheet";
 import { formatINR, marginPercent, unitProfit } from "@/lib/money";
 import type { Product } from "@/lib/types";
@@ -15,6 +16,7 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
     Number(product.sell_price),
     Number(product.cost_price),
   );
+  const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
 
   return (
     <Sheet open onClose={onClose} title={product.name} size="md">
@@ -45,10 +47,23 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
           <dd className="text-xl font-semibold">{margin}%</dd>
         </div>
         <div className="col-span-2 rounded-xl border border-[var(--line)] p-3">
-          <dt className="text-[var(--ink-muted)]">Stock</dt>
-          <dd className="text-xl font-semibold">{product.stock}</dd>
+          <dt className="text-[var(--ink-muted)]">Stock left</dt>
+          <dd
+            className={`text-xl font-semibold ${
+              stock <= 0 ? "text-red-700" : ""
+            }`}
+          >
+            {stock <= 0 ? "Out of stock" : stock}
+          </dd>
         </div>
       </dl>
+
+      <Link
+        href={`/products/${product.id}`}
+        className="mt-4 block rounded-xl border border-[var(--line)] px-4 py-3 text-center text-sm font-semibold"
+      >
+        Edit product
+      </Link>
     </Sheet>
   );
 }

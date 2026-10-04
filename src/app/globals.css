@@ -80,6 +80,11 @@ select {
   }
 }
 
+.sell-checkout-dock-wrap {
+  /* Sit above the mobile bottom tab bar (3.5rem) + safe area */
+  bottom: calc(3.5rem + env(safe-area-inset-bottom));
+}
+
 .sell-checkout-dock {
   background: var(--surface);
   box-shadow: 0 -10px 28px rgb(18 32 39 / 10%);

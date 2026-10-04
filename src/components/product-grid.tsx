@@ -15,8 +15,16 @@ import type { Product } from "@/lib/types";
 export function ProductGrid({ products }: { products: Product[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { addProduct, clearCart, itemCount, totals, items, setQty, removeItem } =
-    useCart();
+  const {
+    addProduct,
+    clearCart,
+    itemCount,
+    totals,
+    items,
+    setQty,
+    removeItem,
+    availableStock,
+  } = useCart();
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [pending, setPending] = useState<Product | null>(null);
@@ -78,66 +86,85 @@ export function ProductGrid({ products }: { products: Product[] }) {
     if (!pending) return;
     const product = pending;
     setPending(null);
-    addProduct(product, qty);
-    flash(`Added ${qty}× ${product.name}`);
+    const result = addProduct(product, qty);
+    if (!result.ok) {
+      flash(`${product.name} is out of stock`);
+      return;
+    }
+    flash(
+      result.limited
+        ? `Only ${result.added} left — added ${result.added}× ${product.name}`
+        : `Added ${result.added}× ${product.name}`,
+    );
   }
 
   const cartLines = (
     <ul className="space-y-2 text-sm">
-      {items.map((item) => (
-        <li
-          key={item.productId}
-          className="rounded-xl bg-[var(--surface-muted)] px-3 py-2.5"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate font-medium">{item.name}</p>
-              <p className="text-xs text-[var(--ink-muted)]">
-                {formatINR(item.sellPrice)} each
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => removeItem(item.productId)}
-              className="-mr-1 min-h-11 min-w-11 rounded-lg text-sm font-semibold text-red-700"
-              aria-label={`Remove ${item.name}`}
-            >
-              Remove
-            </button>
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1">
+      {items.map((item) => {
+        const left = Math.max(0, item.stock - item.qty);
+        return (
+          <li
+            key={item.productId}
+            className="rounded-xl bg-[var(--surface-muted)] px-3 py-2.5"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{item.name}</p>
+                <p className="text-xs text-[var(--ink-muted)]">
+                  {formatINR(item.sellPrice)} each ·{" "}
+                  <span
+                    className={
+                      left <= 0 ? "font-medium text-red-700" : "font-medium"
+                    }
+                  >
+                    {left <= 0 ? "none left" : `${left} left`}
+                  </span>
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => setQty(item.productId, item.qty - 1)}
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold"
-                aria-label={`Decrease ${item.name}`}
+                onClick={() => removeItem(item.productId)}
+                className="-mr-1 min-h-11 min-w-11 rounded-lg text-sm font-semibold text-red-700"
+                aria-label={`Remove ${item.name}`}
               >
-                −
+                Remove
               </button>
-              <span className="min-w-8 text-center text-base font-semibold">
-                {item.qty}
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setQty(item.productId, item.qty - 1)}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold"
+                  aria-label={`Decrease ${item.name}`}
+                >
+                  −
+                </button>
+                <span className="min-w-8 text-center text-base font-semibold">
+                  {item.qty}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQty(item.productId, item.qty + 1)}
+                  disabled={item.qty >= item.stock}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold disabled:opacity-40"
+                  aria-label={`Increase ${item.name}`}
+                >
+                  +
+                </button>
+              </div>
+              <span className="text-base font-semibold tabular-nums">
+                {formatINR(item.qty * item.sellPrice)}
               </span>
-              <button
-                type="button"
-                onClick={() => setQty(item.productId, item.qty + 1)}
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold"
-                aria-label={`Increase ${item.name}`}
-              >
-                +
-              </button>
             </div>
-            <span className="text-base font-semibold tabular-nums">
-              {formatINR(item.qty * item.sellPrice)}
-            </span>
-          </div>
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 
   return (
-    <div className="space-y-3 pb-28 sm:space-y-4 sm:pb-8">
+    <div className="space-y-3 pb-24 sm:space-y-4 sm:pb-8">
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight sm:text-3xl">
@@ -226,44 +253,63 @@ export function ProductGrid({ products }: { products: Product[] }) {
       ) : null}
 
       <section className="space-y-2">
-        {filtered.map((product) => (
-          <article
-            key={product.id}
-            className="product-row flex items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="truncate font-semibold leading-snug">
-                  {product.name}
-                </h2>
-                <p className="shrink-0 text-base font-semibold">
-                  {formatINR(Number(product.sell_price))}
+        {filtered.map((product) => {
+          const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
+          const room = availableStock(product);
+          const out = stock <= 0 || room <= 0;
+          return (
+            <article
+              key={product.id}
+              className="product-row flex items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="truncate font-semibold leading-snug">
+                    {product.name}
+                  </h2>
+                  <p className="shrink-0 text-base font-semibold">
+                    {formatINR(Number(product.sell_price))}
+                  </p>
+                </div>
+                <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
+                  {product.sku}
+                </p>
+                <p
+                  className={`mt-1 text-xs font-medium ${
+                    out ? "text-red-700" : "text-[var(--ink)]"
+                  }`}
+                >
+                  {stock <= 0
+                    ? "Out of stock"
+                    : room <= 0
+                      ? "All in cart"
+                      : `${stock} left`}
                 </p>
               </div>
-              <p className="mt-0.5 text-xs text-[var(--ink-muted)]">{product.sku}</p>
-            </div>
-            <div className="flex shrink-0 flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openInfo(product);
-                }}
-                className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-semibold text-[var(--ink)]"
-              >
-                Info
-              </button>
-              <button
-                type="button"
-                onClick={() => askQty(product)}
-                className="rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-ink)]"
-              >
-                Add
-              </button>
-            </div>
-          </article>
-        ))}
+              <div className="flex shrink-0 flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openInfo(product);
+                  }}
+                  className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-semibold text-[var(--ink)]"
+                >
+                  Info
+                </button>
+                <button
+                  type="button"
+                  onClick={() => askQty(product)}
+                  disabled={out}
+                  className="rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-40"
+                >
+                  Add
+                </button>
+              </div>
+            </article>
+          );
+        })}
 
         {filtered.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[var(--line)] p-8 text-center text-sm text-[var(--ink-muted)]">
@@ -272,8 +318,8 @@ export function ProductGrid({ products }: { products: Product[] }) {
         ) : null}
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 sm:hidden">
-        <div className="sell-checkout-dock border-t border-[var(--line)] pb-[env(safe-area-inset-bottom)]">
+      <div className="sell-checkout-dock-wrap fixed inset-x-0 z-40 sm:hidden">
+        <div className="sell-checkout-dock border-t border-[var(--line)]">
           <div className="mx-auto max-w-6xl px-3 pt-2.5 pb-3">
             {itemCount === 0 ? (
               <p className="rounded-2xl bg-[var(--surface-muted)] px-4 py-3 text-sm text-[var(--ink-muted)]">
@@ -358,6 +404,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
       {pending ? (
         <QtyDialog
           product={pending}
+          maxQty={availableStock(pending)}
           onConfirm={confirmQty}
           onCancel={() => setPending(null)}
         />
