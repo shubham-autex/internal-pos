@@ -14,6 +14,9 @@ type DraftRow = {
   stock: string;
 };
 
+const cellInputClass =
+  "w-full min-w-0 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 py-2 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]";
+
 function emptyRow(): DraftRow {
   return {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -38,7 +41,6 @@ function splitLine(line: string): string[] {
   if (line.includes("\t")) {
     return line.split("\t").map((c) => c.trim());
   }
-  // Simple CSV: split on commas outside quotes
   const cells: string[] = [];
   let current = "";
   let inQuotes = false;
@@ -97,7 +99,7 @@ function rowHasContent(row: DraftRow) {
 export function BulkProductForm() {
   const router = useRouter();
   const [rows, setRows] = useState<DraftRow[]>(() =>
-    Array.from({ length: 5 }, () => emptyRow()),
+    Array.from({ length: 8 }, () => emptyRow()),
   );
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -222,95 +224,110 @@ export function BulkProductForm() {
         </div>
       ) : null}
 
-      <div className="space-y-3">
-        {rows.map((row, index) => (
-          <div
-            key={row.key}
-            className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 sm:p-4"
-          >
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-                Product {index + 1}
-              </p>
-              <button
-                type="button"
-                onClick={() => removeRow(row.key)}
-                className="text-sm font-medium text-red-700 hover:underline"
-              >
-                Remove
-              </button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium">Name</span>
-                <input
-                  value={row.name}
-                  onChange={(e) => updateRow(row.key, "name", e.target.value)}
-                  className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium">SKU</span>
-                <input
-                  value={row.sku}
-                  onChange={(e) => updateRow(row.key, "sku", e.target.value)}
-                  className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium">Cost ₹</span>
-                <input
-                  value={row.cost_price}
-                  inputMode="decimal"
-                  onChange={(e) =>
-                    updateRow(row.key, "cost_price", e.target.value)
-                  }
-                  className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium">Sell ₹</span>
-                <input
-                  value={row.sell_price}
-                  inputMode="decimal"
-                  onChange={(e) =>
-                    updateRow(row.key, "sell_price", e.target.value)
-                  }
-                  className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium">Expense %</span>
-                <input
-                  value={row.expense_percent}
-                  inputMode="decimal"
-                  onChange={(e) =>
-                    updateRow(row.key, "expense_percent", e.target.value)
-                  }
-                  className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium">Stock</span>
-                <input
-                  value={row.stock}
-                  inputMode="numeric"
-                  onChange={(e) => updateRow(row.key, "stock", e.target.value)}
-                  className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                />
-              </label>
-            </div>
-          </div>
-        ))}
+      <div className="overflow-x-auto rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+        <table className="min-w-[720px] w-full border-collapse text-left text-sm">
+          <thead className="bg-[var(--surface-muted)] text-[var(--ink-muted)]">
+            <tr>
+              <th className="sticky left-0 z-10 bg-[var(--surface-muted)] px-3 py-3 font-medium">
+                #
+              </th>
+              <th className="px-3 py-3 font-medium">Name</th>
+              <th className="px-3 py-3 font-medium">SKU</th>
+              <th className="px-3 py-3 font-medium">Cost ₹</th>
+              <th className="px-3 py-3 font-medium">Sell ₹</th>
+              <th className="px-3 py-3 font-medium">Exp %</th>
+              <th className="px-3 py-3 font-medium">Stock</th>
+              <th className="px-3 py-3 font-medium">
+                <span className="sr-only">Remove</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={row.key} className="border-t border-[var(--line)]">
+                <td className="sticky left-0 z-10 bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--ink-muted)]">
+                  {index + 1}
+                </td>
+                <td className="px-2 py-2 min-w-[10rem]">
+                  <input
+                    aria-label={`Name row ${index + 1}`}
+                    value={row.name}
+                    onChange={(e) => updateRow(row.key, "name", e.target.value)}
+                    className={cellInputClass}
+                  />
+                </td>
+                <td className="px-2 py-2 min-w-[8rem]">
+                  <input
+                    aria-label={`SKU row ${index + 1}`}
+                    value={row.sku}
+                    onChange={(e) => updateRow(row.key, "sku", e.target.value)}
+                    className={cellInputClass}
+                  />
+                </td>
+                <td className="px-2 py-2 w-24">
+                  <input
+                    aria-label={`Cost row ${index + 1}`}
+                    value={row.cost_price}
+                    inputMode="decimal"
+                    onChange={(e) =>
+                      updateRow(row.key, "cost_price", e.target.value)
+                    }
+                    className={cellInputClass}
+                  />
+                </td>
+                <td className="px-2 py-2 w-24">
+                  <input
+                    aria-label={`Sell row ${index + 1}`}
+                    value={row.sell_price}
+                    inputMode="decimal"
+                    onChange={(e) =>
+                      updateRow(row.key, "sell_price", e.target.value)
+                    }
+                    className={cellInputClass}
+                  />
+                </td>
+                <td className="px-2 py-2 w-20">
+                  <input
+                    aria-label={`Expense percent row ${index + 1}`}
+                    value={row.expense_percent}
+                    inputMode="decimal"
+                    onChange={(e) =>
+                      updateRow(row.key, "expense_percent", e.target.value)
+                    }
+                    className={cellInputClass}
+                  />
+                </td>
+                <td className="px-2 py-2 w-20">
+                  <input
+                    aria-label={`Stock row ${index + 1}`}
+                    value={row.stock}
+                    inputMode="numeric"
+                    onChange={(e) => updateRow(row.key, "stock", e.target.value)}
+                    className={cellInputClass}
+                  />
+                </td>
+                <td className="px-2 py-2">
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.key)}
+                    className="rounded-lg px-2 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                    aria-label={`Remove row ${index + 1}`}
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <button
         type="button"
-        onClick={() => addRows(3)}
+        onClick={() => addRows(5)}
         className="w-full rounded-xl border border-dashed border-[var(--line)] px-4 py-3 text-sm font-semibold"
       >
-        + Add 3 more rows
+        + Add 5 more rows
       </button>
 
       {error ? (

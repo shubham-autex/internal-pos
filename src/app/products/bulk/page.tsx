@@ -11,7 +11,7 @@ export default async function BulkProductsPage() {
 
   return (
     <AppShell email={user?.email}>
-      <div className="mx-auto max-w-2xl space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4">
         <div>
           <Link
             href="/products"
