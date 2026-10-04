@@ -11,7 +11,8 @@ import { createBarcodeDetector, drawZoomedFrame } from "@/lib/barcode-scan";
 
 const MIN_DIGITAL_ZOOM = 1.2;
 const MAX_DIGITAL_ZOOM = 4;
-const DEFAULT_DIGITAL_ZOOM = 2.2;
+const DEFAULT_DIGITAL_ZOOM = 1.2;
+const DIGITAL_ZOOM_STEP = 0.1;
 const DETECT_INTERVAL_MS = 90;
 const WIDE_FRAME_EVERY = 5;
 const DUP_WINDOW_MS = 700;
@@ -302,32 +303,28 @@ export function QrScanner({
         <canvas ref={canvasRef} className="hidden" />
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-1">
-          <button
-            type="button"
-            aria-label="Zoom out"
-            disabled={!streaming || digitalZoom <= MIN_DIGITAL_ZOOM}
-            onClick={() => setDigital(digitalZoom - 0.3)}
-            className="h-10 w-10 rounded-lg text-lg font-semibold text-[var(--ink)] active:bg-[var(--surface)] disabled:opacity-40"
-          >
-            −
-          </button>
-          <span className="min-w-12 text-center text-xs font-medium text-[var(--ink-muted)]">
+      <div className="mt-2 flex items-center gap-2">
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2">
+          <span className="shrink-0 text-xs font-medium text-[var(--ink-muted)]">
+            Zoom
+          </span>
+          <input
+            type="range"
+            aria-label="Digital zoom"
+            min={MIN_DIGITAL_ZOOM}
+            max={MAX_DIGITAL_ZOOM}
+            step={DIGITAL_ZOOM_STEP}
+            value={digitalZoom}
+            disabled={!streaming}
+            onChange={(e) => setDigital(Number(e.target.value))}
+            className="h-2 min-w-0 flex-1 accent-[var(--accent)] disabled:opacity-40"
+          />
+          <span className="w-10 shrink-0 text-right text-xs font-medium tabular-nums text-[var(--ink-muted)]">
             {digitalZoom.toFixed(1)}×
           </span>
-          <button
-            type="button"
-            aria-label="Zoom in"
-            disabled={!streaming || digitalZoom >= MAX_DIGITAL_ZOOM}
-            onClick={() => setDigital(digitalZoom + 0.3)}
-            className="h-10 w-10 rounded-lg text-lg font-semibold text-[var(--ink)] active:bg-[var(--surface)] disabled:opacity-40"
-          >
-            +
-          </button>
-        </div>
+        </label>
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {zoomCaps ? (
             <button
               type="button"
@@ -367,7 +364,7 @@ export function QrScanner({
         <p className="mt-1.5 text-xs text-[var(--ink-muted)]">
           {paused
             ? "Scanner paused — finish quantity first."
-            : "Hold the small QR inside the box. Pinch or tap + to zoom."}
+            : "Hold the small QR inside the box. Pinch or drag the slider to zoom."}
         </p>
       ) : null}
     </>
