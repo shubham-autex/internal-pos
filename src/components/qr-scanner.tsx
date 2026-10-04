@@ -9,14 +9,12 @@ import {
 } from "@/lib/camera";
 import { createBarcodeDetector, drawZoomedFrame } from "@/lib/barcode-scan";
 
-const MIN_DIGITAL_ZOOM = 1.2;
+const MIN_DIGITAL_ZOOM = 1;
 const MAX_DIGITAL_ZOOM = 4;
-const DEFAULT_DIGITAL_ZOOM = 2.2;
+const DEFAULT_DIGITAL_ZOOM = 1.2;
 const DETECT_INTERVAL_MS = 90;
 const WIDE_FRAME_EVERY = 5;
 const DUP_WINDOW_MS = 700;
-
-type ZoomCaps = { min: number; max: number; step: number };
 
 type QrScannerProps = {
   open: boolean;
@@ -57,8 +55,6 @@ export function QrScanner({
   const [activated, setActivated] = useState(variant === "inline" || open);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
-  const [zoomCaps, setZoomCaps] = useState<ZoomCaps | null>(null);
-  const [opticalZoom, setOpticalZoom] = useState(1);
   const [digitalZoom, setDigitalZoom] = useState(DEFAULT_DIGITAL_ZOOM);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -129,14 +125,6 @@ export function QrScanner({
           } catch {
             // Keep stream even if optical zoom is rejected.
           }
-          setZoomCaps({
-            min: caps.zoom.min,
-            max: caps.zoom.max,
-            step: caps.zoom.step && caps.zoom.step > 0 ? caps.zoom.step : 0.1,
-          });
-          setOpticalZoom(next);
-        } else {
-          setZoomCaps(null);
         }
         setTorchSupported(Boolean(caps?.torch));
         setTorchOn(false);
@@ -203,32 +191,6 @@ export function QrScanner({
       window.clearInterval(id);
     };
   }, [emitScan, live, streaming]);
-
-  const applyOpticalZoom = useCallback(
-    async (next: number) => {
-      const track = getVideoTrack(videoRef.current);
-      if (!track || !zoomCaps) return;
-      const value = Math.min(zoomCaps.max, Math.max(zoomCaps.min, next));
-      try {
-        await track.applyConstraints({
-          advanced: [{ zoom: value } as MediaTrackConstraintSet],
-        });
-        setOpticalZoom(value);
-        if (torchOn) {
-          try {
-            await track.applyConstraints({
-              advanced: [{ torch: true } as MediaTrackConstraintSet],
-            });
-          } catch {
-            setTorchOn(false);
-          }
-        }
-      } catch {
-        // Ignore unsupported zoom apply.
-      }
-    },
-    [torchOn, zoomCaps],
-  );
 
   const setDigital = useCallback((next: number) => {
     setDigitalZoom(Math.min(MAX_DIGITAL_ZOOM, Math.max(MIN_DIGITAL_ZOOM, next)));
@@ -302,61 +264,39 @@ export function QrScanner({
         <canvas ref={canvasRef} className="hidden" />
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-1">
-          <button
-            type="button"
-            aria-label="Zoom out"
-            disabled={paused || digitalZoom <= MIN_DIGITAL_ZOOM}
-            onClick={() => setDigital(digitalZoom - 0.3)}
-            className="h-10 w-10 rounded-lg text-lg font-semibold text-[var(--ink)] active:bg-[var(--surface)] disabled:opacity-40"
-          >
-            −
-          </button>
-          <span className="min-w-12 text-center text-xs font-medium text-[var(--ink-muted)]">
+      <div className="mt-2 flex items-center gap-2">
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2">
+          <span className="w-10 shrink-0 text-xs font-semibold tabular-nums text-[var(--ink-muted)]">
             {digitalZoom.toFixed(1)}×
           </span>
+          <input
+            type="range"
+            min={MIN_DIGITAL_ZOOM}
+            max={MAX_DIGITAL_ZOOM}
+            step={0.1}
+            value={digitalZoom}
+            disabled={paused}
+            aria-label="Zoom"
+            className="qr-zoom-slider min-w-0 flex-1"
+            onChange={(e) => setDigital(Number(e.target.value))}
+          />
+        </label>
+        {torchSupported ? (
           <button
             type="button"
-            aria-label="Zoom in"
-            disabled={paused || digitalZoom >= MAX_DIGITAL_ZOOM}
-            onClick={() => setDigital(digitalZoom + 0.3)}
-            className="h-10 w-10 rounded-lg text-lg font-semibold text-[var(--ink)] active:bg-[var(--surface)] disabled:opacity-40"
+            aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
+            aria-pressed={torchOn}
+            disabled={!streaming}
+            onClick={toggleTorch}
+            className={`shrink-0 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-40 ${
+              torchOn
+                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
+                : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)]"
+            }`}
           >
-            +
+            {torchOn ? "Flash on" : "Flash"}
           </button>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {zoomCaps ? (
-            <button
-              type="button"
-              disabled={!streaming || opticalZoom >= zoomCaps.max}
-              onClick={() =>
-                applyOpticalZoom(opticalZoom + Math.max(zoomCaps.step, 0.5))
-              }
-              className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--ink)] disabled:opacity-40"
-            >
-              Lens {opticalZoom.toFixed(1)}×
-            </button>
-          ) : null}
-          {torchSupported ? (
-            <button
-              type="button"
-              aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
-              aria-pressed={torchOn}
-              disabled={!streaming}
-              onClick={toggleTorch}
-              className={`rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-40 ${
-                torchOn
-                  ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
-                  : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)]"
-              }`}
-            >
-              {torchOn ? "Flash on" : "Flash"}
-            </button>
-          ) : null}
-        </div>
+        ) : null}
       </div>
 
       {error ? (
@@ -367,7 +307,7 @@ export function QrScanner({
         <p className="mt-1.5 text-xs text-[var(--ink-muted)]">
           {paused
             ? "Scanner paused — finish quantity first."
-            : "Hold the small QR inside the box. Pinch or tap + to zoom."}
+            : "Hold the QR inside the box. Slide to zoom for small codes."}
         </p>
       ) : null}
     </>

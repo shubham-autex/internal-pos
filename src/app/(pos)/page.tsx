@@ -1,14 +1,10 @@
 import { Suspense } from "react";
-import { AppShell } from "@/components/app-shell";
 import { ProductGrid } from "@/components/product-grid";
 import { createClient } from "@/lib/supabase/server";
 import type { Product } from "@/lib/types";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { data, error } = await supabase
     .from("products")
@@ -19,7 +15,7 @@ export default async function HomePage() {
   const products = (data ?? []) as Product[];
 
   return (
-    <AppShell email={user?.email}>
+    <>
       {error ? (
         <div className="mb-4 rounded-xl bg-red-50 px-3 py-3 text-sm text-red-800">
           Could not load products: {error.message}. Run{" "}
@@ -29,6 +25,6 @@ export default async function HomePage() {
       <Suspense fallback={<p className="text-sm text-[var(--ink-muted)]">Loading…</p>}>
         <ProductGrid products={products} />
       </Suspense>
-    </AppShell>
+    </>
   );
 }

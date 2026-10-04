@@ -1,13 +1,9 @@
-import { AppShell } from "@/components/app-shell";
 import { formatINR } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 import type { Order } from "@/lib/types";
 
 export default async function OrdersPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { data, error } = await supabase
     .from("orders")
@@ -18,8 +14,7 @@ export default async function OrdersPage() {
   const orders = (data ?? []) as Order[];
 
   return (
-    <AppShell email={user?.email}>
-      <div className="space-y-4">
+    <div className="space-y-4">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold">
             Orders
@@ -66,7 +61,6 @@ export default async function OrdersPage() {
             </p>
           ) : null}
         </div>
-      </div>
-    </AppShell>
+    </div>
   );
 }

@@ -11,6 +11,8 @@
   --accent: #f0a202;
   --accent-soft: #ffe8b0;
   --accent-ink: #1f2a30;
+  --app-header: 3.25rem;
+  --app-tabbar: 4.25rem;
 }
 
 @theme inline {
@@ -89,4 +91,41 @@ select {
   .product-row {
     contain: layout style paint;
   }
+}
+
+.app-header {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.app-tabbar {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 50;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.app-main {
+  padding-top: calc(var(--app-header) + 0.75rem);
+  padding-bottom: calc(var(--app-tabbar) + env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
+@media (min-width: 640px) {
+  .app-main {
+    padding-bottom: 2rem;
+  }
+}
+
+.qr-zoom-slider {
+  height: 2rem;
+  accent-color: var(--accent);
+}
+
+.qr-zoom-slider:disabled {
+  opacity: 0.4;
 }

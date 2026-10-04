@@ -130,7 +130,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
   );
 
   return (
-    <div className={`space-y-3 sm:space-y-4 sm:pb-8 ${cartExpanded ? "pb-80" : "pb-28"}`}>
+    <div className={`space-y-3 sm:space-y-4 ${cartExpanded ? "pb-72" : "pb-24"}`}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight sm:text-3xl">
@@ -264,7 +264,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
       </section>
 
       {/* Mobile sticky cart — expand on same page */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)] sm:hidden">
+      <div className="fixed inset-x-0 z-40 border-t border-[var(--line)] bg-[var(--surface)] bottom-[calc(var(--app-tabbar)+env(safe-area-inset-bottom,0px))] sm:hidden">
         {cartExpanded ? (
           <div className="border-b border-[var(--line)] px-3 pt-3">
             <div className="mb-2 flex items-center justify-between">
