@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Sheet } from "@/components/sheet";
 import { formatINR } from "@/lib/money";
 import type { Product } from "@/lib/types";
@@ -21,16 +21,9 @@ export function QtyDialog({
 }: QtyDialogProps) {
   const limit = Math.max(0, Math.floor(maxQty));
   const [qty, setQty] = useState(limit > 0 ? 1 : 0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const unit = Number(product.sell_price);
   const lineTotal = unit * qty;
   const outOfStock = limit <= 0;
-
-  useEffect(() => {
-    if (outOfStock) return;
-    inputRef.current?.focus({ preventScroll: true });
-    inputRef.current?.select();
-  }, [outOfStock]);
 
   function bump(delta: number) {
     setQty((q) => Math.max(1, Math.min(limit, q + delta)));
@@ -79,7 +72,6 @@ export function QtyDialog({
               −
             </button>
             <input
-              ref={inputRef}
               type="number"
               inputMode="numeric"
               enterKeyHint="done"
