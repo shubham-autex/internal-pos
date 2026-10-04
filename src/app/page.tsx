@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
 import { ProductGrid } from "@/components/product-grid";
+import { loadActiveProducts } from "@/lib/load-products";
 import { createClient } from "@/lib/supabase/server";
-import type { Product } from "@/lib/types";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -10,20 +10,14 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("active", true)
-    .order("name");
-
-  const products = (data ?? []) as Product[];
+  const { products, error } = await loadActiveProducts(supabase);
 
   return (
     <AppShell email={user?.email}>
       {error ? (
         <div className="mb-4 rounded-xl bg-red-50 px-3 py-3 text-sm text-red-800">
-          Could not load products: {error.message}. Run{" "}
-          <code>supabase/schema.sql</code> and <code>supabase/seed.sql</code>.
+          Could not load products: {error}. Run{" "}
+          <code>supabase/schema.sql</code> and migrations for combo support.
         </div>
       ) : null}
       <Suspense fallback={<p className="text-sm text-[var(--ink-muted)]">Loading…</p>}>

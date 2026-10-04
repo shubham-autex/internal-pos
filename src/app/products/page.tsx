@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ProductList } from "@/components/product-list";
+import { loadActiveProducts } from "@/lib/load-products";
 import { createClient } from "@/lib/supabase/server";
-import type { Product } from "@/lib/types";
 
 export default async function ProductsPage() {
   const supabase = await createClient();
@@ -10,13 +10,7 @@ export default async function ProductsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("active", true)
-    .order("name");
-
-  const products = (data ?? []) as Product[];
+  const { products, error } = await loadActiveProducts(supabase);
 
   return (
     <AppShell email={user?.email}>
@@ -27,7 +21,7 @@ export default async function ProductsPage() {
               Products
             </h1>
             <p className="text-sm text-[var(--ink-muted)]">
-              Create, edit, or remove stall items.
+              Create, edit, or remove stall items and combos.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -48,7 +42,7 @@ export default async function ProductsPage() {
 
         {error ? (
           <p className="rounded-xl bg-red-50 px-3 py-3 text-sm text-red-800">
-            {error.message}
+            {error}
           </p>
         ) : null}
 

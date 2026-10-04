@@ -1,8 +1,22 @@
+export type ProductKind = "simple" | "combo";
+
+export type ProductComponentRef = {
+  component_id: string;
+  quantity: number;
+  name?: string;
+  sku?: string;
+  cost_price?: number;
+  sell_price?: number;
+  expense_percent?: number;
+  stock?: number;
+};
+
 export type Product = {
   id: string;
   name: string;
   sku: string;
   description: string | null;
+  kind: ProductKind;
   cost_price: number;
   sell_price: number;
   /** Operating expense as a percent of sell price (0–100). */
@@ -10,6 +24,8 @@ export type Product = {
   stock: number;
   active: boolean;
   created_at: string;
+  /** Populated for combos when loaded with BOM. */
+  components?: ProductComponentRef[];
 };
 
 export type CartItem = {

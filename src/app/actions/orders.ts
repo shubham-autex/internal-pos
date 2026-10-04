@@ -67,30 +67,138 @@ export async function createOrder(
   const productIds = [...new Set(items.map((item) => item.productId))];
   const { data: stockRows, error: stockError } = await supabase
     .from("products")
-    .select("id, name, stock, active")
+    .select("id, name, stock, active, kind")
     .in("id", productIds);
 
   if (stockError) {
     return { ok: false, error: stockError.message };
   }
 
-  const stockById = new Map(
+  const productById = new Map(
     (stockRows ?? []).map((row) => [
       row.id as string,
       {
         name: String(row.name),
         stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
         active: Boolean(row.active),
+        kind: String(row.kind || "simple"),
       },
     ]),
   );
 
+  const comboIds = items
+    .map((item) => item.productId)
+    .filter((id) => productById.get(id)?.kind === "combo");
+
+  const bomByCombo = new Map<
+    string,
+    Array<{ component_id: string; quantity: number; name: string }>
+  >();
+
+  if (comboIds.length > 0) {
+    const { data: bomRows, error: bomError } = await supabase
+      .from("product_components")
+      .select("combo_id, component_id, quantity")
+      .in("combo_id", [...new Set(comboIds)]);
+
+    if (bomError) {
+      return { ok: false, error: bomError.message };
+    }
+
+    const componentIds = [
+      ...new Set((bomRows ?? []).map((row) => String(row.component_id))),
+    ];
+
+    const { data: componentRows, error: componentError } = await supabase
+      .from("products")
+      .select("id, name, stock, active")
+      .in("id", componentIds);
+
+    if (componentError) {
+      return { ok: false, error: componentError.message };
+    }
+
+    const componentById = new Map(
+      (componentRows ?? []).map((row) => [
+        String(row.id),
+        {
+          name: String(row.name),
+          stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
+          active: Boolean(row.active),
+        },
+      ]),
+    );
+
+    for (const row of bomRows ?? []) {
+      const comboId = String(row.combo_id);
+      const componentId = String(row.component_id);
+      const component = componentById.get(componentId);
+      if (!component || !component.active) {
+        return {
+          ok: false,
+          error: `A combo item is missing or inactive for ${productById.get(comboId)?.name ?? "combo"}`,
+        };
+      }
+      const list = bomByCombo.get(comboId) ?? [];
+      list.push({
+        component_id: componentId,
+        quantity: Math.max(1, Math.floor(Number(row.quantity) || 1)),
+        name: component.name,
+      });
+      bomByCombo.set(comboId, list);
+      // Track live stock for components in the same map used for deduction.
+      if (!productById.has(componentId)) {
+        productById.set(componentId, {
+          name: component.name,
+          stock: component.stock,
+          active: component.active,
+          kind: "simple",
+        });
+      }
+    }
+  }
+
+  // Aggregate stock deductions (simple lines + combo components).
+  const deductById = new Map<string, { name: string; qty: number }>();
+
+  function addDeduct(productId: string, name: string, qty: number) {
+    const existing = deductById.get(productId);
+    if (existing) {
+      existing.qty += qty;
+      return;
+    }
+    deductById.set(productId, { name, qty });
+  }
+
   for (const item of items) {
-    const product = stockById.get(item.productId);
+    const product = productById.get(item.productId);
     if (!product || !product.active) {
       return { ok: false, error: `${item.name} is no longer available` };
     }
-    if (product.stock < item.qty) {
+
+    if (product.kind === "combo") {
+      const bom = bomByCombo.get(item.productId) ?? [];
+      if (bom.length === 0) {
+        return { ok: false, error: `${item.name} has no combo items configured` };
+      }
+      for (const component of bom) {
+        addDeduct(
+          component.component_id,
+          component.name,
+          component.quantity * item.qty,
+        );
+      }
+    } else {
+      addDeduct(item.productId, product.name, item.qty);
+    }
+  }
+
+  for (const [productId, need] of deductById) {
+    const product = productById.get(productId);
+    if (!product || !product.active) {
+      return { ok: false, error: `${need.name} is no longer available` };
+    }
+    if (product.stock < need.qty) {
       return {
         ok: false,
         error:
@@ -151,24 +259,24 @@ export async function createOrder(
     return { ok: false, error: itemsError.message };
   }
 
-  for (const item of items) {
-    const product = stockById.get(item.productId);
+  for (const [productId, need] of deductById) {
+    const product = productById.get(productId);
     if (!product) continue;
-    const nextStock = product.stock - item.qty;
+    const nextStock = product.stock - need.qty;
     if (nextStock < 0) {
       return { ok: false, error: `Not enough stock for ${product.name}` };
     }
     const { error: updateError } = await supabase
       .from("products")
       .update({ stock: nextStock })
-      .eq("id", item.productId)
-      .gte("stock", item.qty);
+      .eq("id", productId)
+      .gte("stock", need.qty);
 
     if (updateError) {
       return { ok: false, error: updateError.message };
     }
 
-    stockById.set(item.productId, { ...product, stock: nextStock });
+    productById.set(productId, { ...product, stock: nextStock });
   }
 
   revalidatePath("/");

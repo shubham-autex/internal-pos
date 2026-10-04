@@ -32,7 +32,14 @@ export function ProductList({ products }: { products: Product[] }) {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold">{product.name}</p>
+                  <p className="truncate font-semibold">
+                    {product.name}
+                    {product.kind === "combo" ? (
+                      <span className="ml-2 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-ink)]">
+                        Combo
+                      </span>
+                    ) : null}
+                  </p>
                   <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
                     {product.sku} · {formatINR(Number(product.sell_price))}
                   </p>
@@ -41,7 +48,11 @@ export function ProductList({ products }: { products: Product[] }) {
                       stock <= 0 ? "text-red-700" : "text-[var(--ink)]"
                     }`}
                   >
-                    {stock <= 0 ? "Out of stock" : `${stock} left`}
+                    {stock <= 0
+                      ? "Out of stock"
+                      : product.kind === "combo"
+                        ? `${stock} buildable`
+                        : `${stock} left`}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col gap-1.5">

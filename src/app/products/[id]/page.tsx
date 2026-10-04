@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ProductForm } from "@/components/product-form";
+import { loadActiveProducts, loadProductWithComponents } from "@/lib/load-products";
 import { createClient } from "@/lib/supabase/server";
-import type { Product } from "@/lib/types";
 
 export default async function EditProductPage({
   params,
@@ -16,18 +16,19 @@ export default async function EditProductPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", id)
-    .eq("active", true)
-    .maybeSingle();
+  const [{ product, error }, { products }] = await Promise.all([
+    loadProductWithComponents(supabase, id),
+    loadActiveProducts(supabase),
+  ]);
 
-  if (error || !data) {
+  if (error || !product) {
     notFound();
   }
 
-  const product = data as Product;
+  const simpleProducts = products.filter(
+    (item) => item.kind !== "combo" && item.id !== product.id,
+  );
+  const isCombo = product.kind === "combo";
 
   return (
     <AppShell email={user?.email}>
@@ -40,13 +41,15 @@ export default async function EditProductPage({
             ← Products
           </Link>
           <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold">
-            Edit product
+            Edit {isCombo ? "combo" : "product"}
           </h1>
           <p className="text-sm text-[var(--ink-muted)]">
-            Update price, stock, or SKU. Stock left: {product.stock}.
+            {isCombo
+              ? `Buildable from components: ${product.stock}.`
+              : `Stock left: ${product.stock}.`}
           </p>
         </div>
-        <ProductForm product={product} />
+        <ProductForm product={product} simpleProducts={simpleProducts} />
       </div>
     </AppShell>
   );

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { BulkProductForm } from "@/components/bulk-product-form";
+import { loadActiveProducts } from "@/lib/load-products";
 import { createClient } from "@/lib/supabase/server";
-import type { Product } from "@/lib/types";
 
 export default async function BulkProductsPage() {
   const supabase = await createClient();
@@ -10,13 +10,8 @@ export default async function BulkProductsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("active", true)
-    .order("name");
-
-  const products = (data ?? []) as Product[];
+  const { products, error } = await loadActiveProducts(supabase);
+  const simpleProducts = products.filter((product) => product.kind !== "combo");
 
   return (
     <AppShell email={user?.email}>
@@ -32,17 +27,18 @@ export default async function BulkProductsPage() {
             Bulk add
           </h1>
           <p className="text-sm text-[var(--ink-muted)]">
-            Edit existing products in the table, or add new rows on top.
+            Edit simple products in the table, or add new rows on top. Combos
+            are edited from the product page.
           </p>
         </div>
 
         {error ? (
           <p className="rounded-xl bg-red-50 px-3 py-3 text-sm text-red-800">
-            {error.message}
+            {error}
           </p>
         ) : null}
 
-        <BulkProductForm products={products} />
+        <BulkProductForm products={simpleProducts} />
       </div>
     </AppShell>
   );

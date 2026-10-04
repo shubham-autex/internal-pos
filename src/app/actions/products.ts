@@ -2,12 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { deriveComboCosting } from "@/lib/combo";
 import { createClient } from "@/lib/supabase/server";
+import type { ProductKind } from "@/lib/types";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   sku: z.string().trim().min(1, "SKU / barcode is required"),
   description: z.string().trim().optional(),
+  kind: z.enum(["simple", "combo"]).default("simple"),
   cost_price: z.coerce.number().min(0, "Cost must be 0 or more"),
   sell_price: z.coerce.number().min(0, "Sell price must be 0 or more"),
   expense_percent: z.coerce
@@ -16,6 +19,11 @@ const productSchema = z.object({
     .max(100, "Expense % cannot exceed 100")
     .default(0),
   stock: z.coerce.number().int().min(0).default(0),
+});
+
+const componentSchema = z.object({
+  component_id: z.string().uuid(),
+  quantity: z.coerce.number().int().positive(),
 });
 
 export type ProductActionState = {
@@ -32,11 +40,27 @@ async function requireUser() {
   return { supabase, user };
 }
 
+function parseComponents(formData: FormData) {
+  const raw = String(formData.get("components_json") ?? "[]");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { success: false as const, error: "Invalid combo components" };
+  }
+  const result = z.array(componentSchema).safeParse(parsed);
+  if (!result.success) {
+    return { success: false as const, error: "Invalid combo components" };
+  }
+  return { success: true as const, data: result.data };
+}
+
 function parseProductForm(formData: FormData) {
   return productSchema.safeParse({
     name: formData.get("name"),
     sku: formData.get("sku"),
     description: formData.get("description") || undefined,
+    kind: formData.get("kind") || "simple",
     cost_price: formData.get("cost_price"),
     sell_price: formData.get("sell_price"),
     expense_percent: formData.get("expense_percent") || 0,
@@ -48,8 +72,131 @@ function revalidateProductPaths(productId?: string) {
   revalidatePath("/");
   revalidatePath("/products");
   revalidatePath("/products/new");
+  revalidatePath("/products/bulk");
   if (productId) {
     revalidatePath(`/products/${productId}`);
+  }
+}
+
+async function resolveComboFields(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sellPrice: number,
+  components: Array<{ component_id: string; quantity: number }>,
+  excludeProductId?: string,
+) {
+  if (components.length === 0) {
+    return { error: "Add at least one product to the combo" as const };
+  }
+
+  const ids = [...new Set(components.map((c) => c.component_id))];
+  if (excludeProductId && ids.includes(excludeProductId)) {
+    return { error: "A combo cannot include itself" as const };
+  }
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name, kind, active, cost_price, sell_price, expense_percent")
+    .in("id", ids)
+    .eq("active", true);
+
+  if (error) return { error: error.message as string };
+
+  const byId = new Map((data ?? []).map((row) => [String(row.id), row]));
+  const costingInputs = [];
+
+  for (const component of components) {
+    const row = byId.get(component.component_id);
+    if (!row) {
+      return { error: "One or more combo items were not found" as const };
+    }
+    if (String(row.kind || "simple") !== "simple") {
+      return {
+        error: `“${row.name}” is a combo — only simple products can be included` as const,
+      };
+    }
+    costingInputs.push({
+      cost_price: Number(row.cost_price) || 0,
+      sell_price: Number(row.sell_price) || 0,
+      expense_percent: Number(row.expense_percent) || 0,
+      quantity: component.quantity,
+    });
+  }
+
+  const derived = deriveComboCosting(sellPrice, costingInputs);
+  return {
+    cost_price: derived.cost_price,
+    expense_percent: derived.expense_percent,
+    components,
+  };
+}
+
+async function replaceComponents(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  comboId: string,
+  components: Array<{ component_id: string; quantity: number }>,
+) {
+  const { error: deleteError } = await supabase
+    .from("product_components")
+    .delete()
+    .eq("combo_id", comboId);
+  if (deleteError) return deleteError.message;
+
+  if (components.length === 0) return null;
+
+  const { error: insertError } = await supabase.from("product_components").insert(
+    components.map((component) => ({
+      combo_id: comboId,
+      component_id: component.component_id,
+      quantity: component.quantity,
+    })),
+  );
+  return insertError?.message ?? null;
+}
+
+async function recomputeCombosUsingComponent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  componentId: string,
+) {
+  const { data: links, error } = await supabase
+    .from("product_components")
+    .select("combo_id")
+    .eq("component_id", componentId);
+
+  if (error || !links?.length) return;
+
+  const comboIds = [...new Set(links.map((row) => String(row.combo_id)))];
+
+  for (const comboId of comboIds) {
+    const { data: combo } = await supabase
+      .from("products")
+      .select("id, sell_price, active, kind")
+      .eq("id", comboId)
+      .maybeSingle();
+    if (!combo || !combo.active || String(combo.kind) !== "combo") continue;
+
+    const { data: bom } = await supabase
+      .from("product_components")
+      .select("component_id, quantity")
+      .eq("combo_id", comboId);
+
+    const resolved = await resolveComboFields(
+      supabase,
+      Number(combo.sell_price) || 0,
+      (bom ?? []).map((row) => ({
+        component_id: String(row.component_id),
+        quantity: Math.max(1, Math.floor(Number(row.quantity) || 1)),
+      })),
+      comboId,
+    );
+    if ("error" in resolved && resolved.error) continue;
+
+    await supabase
+      .from("products")
+      .update({
+        cost_price: resolved.cost_price,
+        expense_percent: resolved.expense_percent,
+      })
+      .eq("id", comboId);
   }
 }
 
@@ -62,9 +209,32 @@ export async function createProduct(
     return { error: parsed.error.issues[0]?.message ?? "Invalid product" };
   }
 
+  const kind = parsed.data.kind as ProductKind;
   const { supabase, user } = await requireUser();
   if (!user) {
     return { error: "You must be signed in" };
+  }
+
+  let cost_price = parsed.data.cost_price;
+  let expense_percent = parsed.data.expense_percent;
+  let stock = parsed.data.stock;
+  let components: Array<{ component_id: string; quantity: number }> = [];
+
+  if (kind === "combo") {
+    const bom = parseComponents(formData);
+    if (!bom.success) return { error: bom.error };
+    const resolved = await resolveComboFields(
+      supabase,
+      parsed.data.sell_price,
+      bom.data,
+    );
+    if ("error" in resolved && resolved.error) {
+      return { error: resolved.error };
+    }
+    cost_price = resolved.cost_price!;
+    expense_percent = resolved.expense_percent!;
+    components = resolved.components!;
+    stock = 0;
   }
 
   const { data, error } = await supabase
@@ -73,10 +243,11 @@ export async function createProduct(
       name: parsed.data.name,
       sku: parsed.data.sku,
       description: parsed.data.description ?? null,
-      cost_price: parsed.data.cost_price,
+      kind,
+      cost_price,
       sell_price: parsed.data.sell_price,
-      expense_percent: parsed.data.expense_percent,
-      stock: parsed.data.stock,
+      expense_percent,
+      stock,
       active: true,
     })
     .select("id")
@@ -87,6 +258,14 @@ export async function createProduct(
       return { error: "A product with this SKU already exists" };
     }
     return { error: error.message };
+  }
+
+  if (kind === "combo") {
+    const bomError = await replaceComponents(supabase, data.id, components);
+    if (bomError) {
+      await supabase.from("products").delete().eq("id", data.id);
+      return { error: bomError };
+    }
   }
 
   revalidateProductPaths(data.id);
@@ -107,9 +286,46 @@ export async function updateProduct(
     return { error: parsed.error.issues[0]?.message ?? "Invalid product" };
   }
 
+  const kind = parsed.data.kind as ProductKind;
   const { supabase, user } = await requireUser();
   if (!user) {
     return { error: "You must be signed in" };
+  }
+
+  const { data: existing } = await supabase
+    .from("products")
+    .select("id, kind")
+    .eq("id", productId)
+    .maybeSingle();
+
+  if (!existing) {
+    return { error: "Product not found" };
+  }
+
+  // Keep kind stable on edit (don't convert simple↔combo here).
+  const effectiveKind = (String(existing.kind || "simple") as ProductKind) || kind;
+
+  let cost_price = parsed.data.cost_price;
+  let expense_percent = parsed.data.expense_percent;
+  let stock = parsed.data.stock;
+  let components: Array<{ component_id: string; quantity: number }> = [];
+
+  if (effectiveKind === "combo") {
+    const bom = parseComponents(formData);
+    if (!bom.success) return { error: bom.error };
+    const resolved = await resolveComboFields(
+      supabase,
+      parsed.data.sell_price,
+      bom.data,
+      productId,
+    );
+    if ("error" in resolved && resolved.error) {
+      return { error: resolved.error };
+    }
+    cost_price = resolved.cost_price!;
+    expense_percent = resolved.expense_percent!;
+    components = resolved.components!;
+    stock = 0;
   }
 
   const { error } = await supabase
@@ -118,10 +334,11 @@ export async function updateProduct(
       name: parsed.data.name,
       sku: parsed.data.sku,
       description: parsed.data.description ?? null,
-      cost_price: parsed.data.cost_price,
+      kind: effectiveKind,
+      cost_price,
       sell_price: parsed.data.sell_price,
-      expense_percent: parsed.data.expense_percent,
-      stock: parsed.data.stock,
+      expense_percent,
+      stock,
     })
     .eq("id", productId);
 
@@ -130,6 +347,13 @@ export async function updateProduct(
       return { error: "A product with this SKU already exists" };
     }
     return { error: error.message };
+  }
+
+  if (effectiveKind === "combo") {
+    const bomError = await replaceComponents(supabase, productId, components);
+    if (bomError) return { error: bomError };
+  } else {
+    await recomputeCombosUsingComponent(supabase, productId);
   }
 
   revalidateProductPaths(productId);
@@ -146,6 +370,17 @@ export async function deleteProduct(productId: string): Promise<ProductActionSta
     return { error: "You must be signed in" };
   }
 
+  const { count } = await supabase
+    .from("product_components")
+    .select("*", { count: "exact", head: true })
+    .eq("component_id", productId);
+
+  if ((count ?? 0) > 0) {
+    return {
+      error: "This product is used in a combo. Remove it from combos first.",
+    };
+  }
+
   const { error } = await supabase
     .from("products")
     .update({ active: false })
@@ -159,7 +394,7 @@ export async function deleteProduct(productId: string): Promise<ProductActionSta
   return { success: true, productId };
 }
 
-const bulkRowSchema = productSchema.extend({
+const bulkRowSchema = productSchema.omit({ kind: true }).extend({
   id: z.string().uuid().optional(),
 });
 
@@ -235,6 +470,7 @@ export async function bulkSaveProducts(
           name: row.name,
           sku: row.sku,
           description: row.description ?? null,
+          kind: "simple",
           cost_price: row.cost_price,
           sell_price: row.sell_price,
           expense_percent: row.expense_percent,
@@ -256,6 +492,18 @@ export async function bulkSaveProducts(
   }
 
   for (const row of toUpdate) {
+    const { data: existing } = await supabase
+      .from("products")
+      .select("kind")
+      .eq("id", row.id!)
+      .maybeSingle();
+
+    if (existing && String(existing.kind) === "combo") {
+      return {
+        error: `“${row.name}” is a combo — edit it from the product page, not bulk.`,
+      };
+    }
+
     const { error } = await supabase
       .from("products")
       .update({
@@ -278,9 +526,9 @@ export async function bulkSaveProducts(
       return { error: error.message };
     }
     updated += 1;
+    await recomputeCombosUsingComponent(supabase, row.id!);
   }
 
   revalidateProductPaths();
-  revalidatePath("/products/bulk");
   return { success: true, created, updated };
 }

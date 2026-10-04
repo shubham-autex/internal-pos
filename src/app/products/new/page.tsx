@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ProductForm } from "@/components/product-form";
+import { loadActiveProducts } from "@/lib/load-products";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function NewProductPage() {
@@ -8,6 +9,9 @@ export default async function NewProductPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const { products } = await loadActiveProducts(supabase);
+  const simpleProducts = products.filter((product) => product.kind !== "combo");
 
   return (
     <AppShell email={user?.email}>
@@ -23,10 +27,11 @@ export default async function NewProductPage() {
             Add product
           </h1>
           <p className="text-sm text-[var(--ink-muted)]">
-            Set cost and sell price. Scan QR/barcode into SKU during add.
+            Simple item or combo. Combos use their own sell price; cost and
+            expense come from selected products.
           </p>
         </div>
-        <ProductForm />
+        <ProductForm simpleProducts={simpleProducts} />
       </div>
     </AppShell>
   );

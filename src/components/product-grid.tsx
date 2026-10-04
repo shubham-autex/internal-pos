@@ -266,6 +266,11 @@ export function ProductGrid({ products }: { products: Product[] }) {
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="truncate font-semibold leading-snug">
                     {product.name}
+                    {product.kind === "combo" ? (
+                      <span className="ml-1.5 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-ink)]">
+                        Combo
+                      </span>
+                    ) : null}
                   </h2>
                   <p className="shrink-0 text-base font-semibold">
                     {formatINR(Number(product.sell_price))}
@@ -283,7 +288,9 @@ export function ProductGrid({ products }: { products: Product[] }) {
                     ? "Out of stock"
                     : room <= 0
                       ? "All in cart"
-                      : `${stock} left`}
+                      : product.kind === "combo"
+                        ? `${stock} buildable`
+                        : `${stock} left`}
                 </p>
               </div>
               <div className="flex shrink-0 flex-col gap-1.5">

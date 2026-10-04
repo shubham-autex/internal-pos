@@ -8,6 +8,7 @@ create table if not exists public.products (
   name text not null,
   sku text not null unique,
   description text,
+  kind text not null default 'simple' check (kind in ('simple', 'combo')),
   cost_price numeric(12, 2) not null check (cost_price >= 0),
   sell_price numeric(12, 2) not null check (sell_price >= 0),
   expense_percent numeric(5, 2) not null default 0 check (expense_percent >= 0 and expense_percent <= 100),
@@ -15,6 +16,18 @@ create table if not exists public.products (
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+-- Combo BOM: combo sell price is on products; cost/expense come from components.
+create table if not exists public.product_components (
+  combo_id uuid not null references public.products (id) on delete cascade,
+  component_id uuid not null references public.products (id) on delete restrict,
+  quantity integer not null check (quantity > 0),
+  primary key (combo_id, component_id),
+  check (combo_id <> component_id)
+);
+
+create index if not exists product_components_component_id_idx
+  on public.product_components (component_id);
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
@@ -52,6 +65,7 @@ create index if not exists orders_created_at_idx on public.orders (created_at de
 create index if not exists order_items_order_id_idx on public.order_items (order_id);
 
 alter table public.products enable row level security;
+alter table public.product_components enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 
@@ -70,6 +84,27 @@ create policy "Authenticated staff can update products"
   to authenticated
   using (true)
   with check (true);
+
+create policy "Authenticated staff can read product components"
+  on public.product_components for select
+  to authenticated
+  using (true);
+
+create policy "Authenticated staff can insert product components"
+  on public.product_components for insert
+  to authenticated
+  with check (true);
+
+create policy "Authenticated staff can update product components"
+  on public.product_components for update
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated staff can delete product components"
+  on public.product_components for delete
+  to authenticated
+  using (true);
 
 create policy "Authenticated staff can read orders"
   on public.orders for select

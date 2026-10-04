@@ -23,10 +23,15 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
   const profit = unitProfit(sell, cost, expensePct);
   const margin = marginPercent(sell, cost, expensePct);
   const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
+  const isCombo = product.kind === "combo";
+  const components = product.components ?? [];
 
   return (
     <Sheet open onClose={onClose} title={product.name} size="md">
-      <p className="text-sm text-[var(--ink-muted)]">SKU {product.sku}</p>
+      <p className="text-sm text-[var(--ink-muted)]">
+        SKU {product.sku}
+        {isCombo ? " · Combo" : ""}
+      </p>
       {product.description ? (
         <p className="mt-3 text-sm">{product.description}</p>
       ) : null}
@@ -37,11 +42,15 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
           <dd className="text-xl font-semibold">{formatINR(sell)}</dd>
         </div>
         <div className="rounded-xl bg-[var(--surface-muted)] p-3">
-          <dt className="text-[var(--ink-muted)]">Cost</dt>
+          <dt className="text-[var(--ink-muted)]">
+            Cost{isCombo ? " (from items)" : ""}
+          </dt>
           <dd className="text-xl font-semibold">{formatINR(cost)}</dd>
         </div>
         <div className="rounded-xl bg-[var(--surface-muted)] p-3">
-          <dt className="text-[var(--ink-muted)]">Expense</dt>
+          <dt className="text-[var(--ink-muted)]">
+            Expense{isCombo ? " (from items)" : ""}
+          </dt>
           <dd className="text-xl font-semibold">{expensePct}%</dd>
           <dd className="mt-0.5 text-xs text-[var(--ink-muted)]">
             {formatINR(expense)} of sell
@@ -59,7 +68,9 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
           </dd>
         </div>
         <div className="col-span-2 rounded-xl border border-[var(--line)] p-3">
-          <dt className="text-[var(--ink-muted)]">Stock left</dt>
+          <dt className="text-[var(--ink-muted)]">
+            {isCombo ? "Buildable stock" : "Stock left"}
+          </dt>
           <dd
             className={`text-xl font-semibold ${
               stock <= 0 ? "text-red-700" : ""
@@ -70,11 +81,32 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
         </div>
       </dl>
 
+      {isCombo && components.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-[var(--line)] p-3">
+          <p className="text-sm font-semibold">Includes</p>
+          <ul className="mt-2 space-y-1.5 text-sm">
+            {components.map((component) => (
+              <li
+                key={component.component_id}
+                className="flex justify-between gap-2"
+              >
+                <span className="truncate">
+                  {component.quantity}× {component.name ?? "Item"}
+                </span>
+                <span className="shrink-0 text-[var(--ink-muted)]">
+                  {component.sku}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <Link
         href={`/products/${product.id}`}
         className="mt-4 block rounded-xl border border-[var(--line)] px-4 py-3 text-center text-sm font-semibold"
       >
-        Edit product
+        Edit {isCombo ? "combo" : "product"}
       </Link>
     </Sheet>
   );
