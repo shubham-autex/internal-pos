@@ -130,7 +130,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
   );
 
   return (
-    <div className={`space-y-3 sm:space-y-4 ${cartExpanded ? "pb-72" : "pb-24"}`}>
+    <div className={`space-y-3 sm:space-y-4 ${cartExpanded ? "pb-80" : "pb-36"}`}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight sm:text-3xl">
