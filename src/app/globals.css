@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --background: #e7eef0;
+  --foreground: #122027;
+  --ink: #122027;
+  --ink-muted: #5b6b72;
+  --surface: #f7fbfc;
+  --surface-muted: #e2ebef;
+  --line: #c9d6dc;
+  --accent: #f0a202;
+  --accent-soft: #ffe8b0;
+  --accent-ink: #1f2a30;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+body {
+  background:
+    radial-gradient(1000px 480px at 0% -5%, #9fd0c8 0%, transparent 55%),
+    radial-gradient(800px 420px at 100% 0%, #f6d27a 0%, transparent 48%),
+    linear-gradient(180deg, #edf3f5 0%, #e7eef0 45%, #dfe8eb 100%);
+  color: var(--foreground);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  min-height: 100%;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 40%, white);
+}
+
+/* Compact full-bleed camera for @yudiel/react-qr-scanner */
+.qr-inline-region {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  background: #000;
+}
+
+.qr-inline-region video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+@media (min-width: 640px) {
+  .qr-inline-region {
+    height: 280px;
+  }
+}

@@ -1,0 +1,81 @@
+"use client";
+
+import { useEffect, useId, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
+type SheetProps = {
+  open: boolean;
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  /** Wider sheet for forms with more content */
+  size?: "sm" | "md" | "lg";
+};
+
+const sizeClass = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+};
+
+export function Sheet({
+  open,
+  title,
+  onClose,
+  children,
+  size = "md",
+}: SheetProps) {
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 sm:items-center sm:p-4"
+      role="presentation"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`flex max-h-[92dvh] w-full flex-col rounded-t-3xl bg-[var(--surface)] shadow-xl sm:max-h-[85dvh] sm:rounded-2xl ${sizeClass[size]}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center justify-center pt-2 sm:hidden">
+          <div className="h-1.5 w-10 rounded-full bg-[var(--line)]" />
+        </div>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--line)] px-4 pb-3 pt-2 sm:px-5 sm:pt-4">
+          <h2 id={titleId} className="text-lg font-semibold leading-snug sm:text-xl">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-3 py-2 text-sm font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-muted)]"
+          >
+            Close
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
