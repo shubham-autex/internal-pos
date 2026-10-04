@@ -22,75 +22,6 @@ export function ProductList({ products }: { products: Product[] }) {
         </p>
       ) : null}
 
-      <ul className="space-y-2">
-        {products.map((product) => {
-          const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
-          return (
-            <li
-              key={product.id}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">
-                    {product.name}
-                    {product.kind === "combo" ? (
-                      <span className="ml-2 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-ink)]">
-                        Combo
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-                    {product.sku} · {formatINR(Number(product.sell_price))}
-                  </p>
-                  {product.tags.length > 0 ? (
-                    <p className="mt-1 flex flex-wrap gap-1">
-                      {product.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-md bg-[var(--surface-muted)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </p>
-                  ) : null}
-                  <p
-                    className={`mt-1 text-sm font-medium ${
-                      stock <= 0 ? "text-red-700" : "text-[var(--ink)]"
-                    }`}
-                  >
-                    {stock <= 0
-                      ? "Out of stock"
-                      : product.kind === "combo"
-                        ? `${stock} buildable`
-                        : `${stock} left`}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col gap-1.5">
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="rounded-xl border border-[var(--line)] px-3 py-2 text-center text-sm font-semibold"
-                  >
-                    Edit
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setError(null);
-                      setPendingDelete(product);
-                    }}
-                    className="rounded-xl px-3 py-2 text-sm font-semibold text-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-
       {products.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-[var(--line)] p-8 text-center text-sm text-[var(--ink-muted)]">
           No products yet.{" "}
@@ -103,7 +34,116 @@ export function ProductList({ products }: { products: Product[] }) {
           </Link>
           .
         </p>
-      ) : null}
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-[var(--surface-muted)] text-[var(--ink-muted)]">
+              <tr>
+                <th className="px-3 py-3 font-medium sm:px-4">Name</th>
+                <th className="px-3 py-3 font-medium sm:px-4">SKU</th>
+                <th className="hidden px-4 py-3 font-medium sm:table-cell">
+                  Cost
+                </th>
+                <th className="px-3 py-3 font-medium sm:px-4">SP</th>
+                <th className="px-3 py-3 font-medium sm:px-4">Stock</th>
+                <th className="hidden px-4 py-3 font-medium md:table-cell">
+                  Tags
+                </th>
+                <th className="hidden px-4 py-3 font-medium sm:table-cell">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((product) => {
+                const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
+                return (
+                  <tr
+                    key={product.id}
+                    className="border-t border-[var(--line)]"
+                  >
+                    <td className="max-w-[9rem] px-3 py-3 sm:max-w-none sm:px-4">
+                      <Link
+                        href={`/products/${product.id}`}
+                        className="font-semibold leading-snug hover:underline"
+                      >
+                        <span className="line-clamp-2">{product.name}</span>
+                      </Link>
+                      {product.kind === "combo" ? (
+                        <span className="mt-1 inline-block rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-ink)]">
+                          Combo
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-3 font-mono text-xs text-[var(--ink-muted)] sm:px-4 sm:text-sm">
+                      {product.sku}
+                    </td>
+                    <td className="hidden px-4 py-3 tabular-nums sm:table-cell">
+                      {formatINR(Number(product.cost_price))}
+                    </td>
+                    <td className="px-3 py-3 font-semibold tabular-nums sm:px-4">
+                      {formatINR(Number(product.sell_price))}
+                    </td>
+                    <td
+                      className={`px-3 py-3 tabular-nums sm:px-4 ${
+                        stock <= 0 ? "font-medium text-red-700" : ""
+                      }`}
+                    >
+                      {stock <= 0
+                        ? "0"
+                        : product.kind === "combo"
+                          ? `${stock}*`
+                          : stock}
+                    </td>
+                    <td className="hidden px-4 py-3 md:table-cell">
+                      {product.tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {product.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-md bg-[var(--surface-muted)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[var(--ink-muted)]">—</span>
+                      )}
+                    </td>
+                    <td className="hidden px-4 py-3 sm:table-cell">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/products/${product.id}`}
+                          className="rounded-xl border border-[var(--line)] px-3 py-1.5 text-sm font-semibold"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError(null);
+                            setPendingDelete(product);
+                          }}
+                          className="rounded-xl px-3 py-1.5 text-sm font-semibold text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="border-t border-[var(--line)] px-3 py-2 text-xs text-[var(--ink-muted)] sm:hidden">
+            Tap a name to edit. * = combo buildable qty.
+          </p>
+          <p className="hidden border-t border-[var(--line)] px-4 py-2 text-xs text-[var(--ink-muted)] sm:block">
+            * Combo stock is how many can be built from components.
+          </p>
+        </div>
+      )}
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}
