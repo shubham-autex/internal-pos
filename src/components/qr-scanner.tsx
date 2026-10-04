@@ -9,8 +9,10 @@ const Scanner = dynamic(
   { ssr: false },
 );
 
-/** Mild default zoom into available camera range for small QR codes. */
-const DEFAULT_ZOOM_RATIO = 0.4;
+/** Default zoom into available camera range for small QR codes. */
+const DEFAULT_ZOOM_RATIO = 0.7;
+/** Prefer at least this absolute zoom when the camera supports it. */
+const DEFAULT_ZOOM_MIN = 2;
 
 type QrScannerProps = {
   open: boolean;
@@ -80,7 +82,8 @@ export function QrScanner({
       if (!caps?.zoom || caps.zoom.max <= caps.zoom.min) return;
 
       const { min, max } = caps.zoom;
-      const target = Math.min(max, min + (max - min) * DEFAULT_ZOOM_RATIO);
+      const fromRatio = min + (max - min) * DEFAULT_ZOOM_RATIO;
+      const target = Math.min(max, Math.max(fromRatio, Math.min(DEFAULT_ZOOM_MIN, max)));
 
       try {
         await track.applyConstraints({
