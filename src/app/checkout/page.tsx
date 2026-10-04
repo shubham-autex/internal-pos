@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { CheckoutClient } from "@/components/checkout-client";
-import { getUpiId, getUpiName } from "@/lib/env";
+import { getUpiAccounts } from "@/lib/upi";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function CheckoutPage() {
@@ -11,7 +11,7 @@ export default async function CheckoutPage() {
 
   return (
     <AppShell email={user?.email}>
-      <CheckoutClient upiId={getUpiId()} upiName={getUpiName()} />
+      <CheckoutClient upiAccounts={getUpiAccounts()} />
     </AppShell>
   );
 }

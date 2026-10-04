@@ -25,6 +25,9 @@ const orderSchema = z.object({
   discountPercent: z.number().min(0).max(100).default(0),
   paymentMethod: z.enum(["upi", "cash"]),
   cashTendered: z.number().min(0).optional().nullable(),
+  /** UPI VPA / payee name shown on the QR when marking paid. */
+  upiId: z.string().trim().min(1).optional().nullable(),
+  upiName: z.string().trim().optional().nullable(),
 });
 
 export type CreateOrderResult =
@@ -48,8 +51,15 @@ export async function createOrder(
     return { ok: false, error: "You must be signed in" };
   }
 
-  const { items, discountAmount, discountPercent, paymentMethod, cashTendered } =
-    parsed.data;
+  const {
+    items,
+    discountAmount,
+    discountPercent,
+    paymentMethod,
+    cashTendered,
+    upiId,
+    upiName,
+  } = parsed.data;
   const totals = computeCartTotals(
     items.map((item) => ({
       ...item,
@@ -218,6 +228,10 @@ export async function createOrder(
     cashChange = roundMoney(tendered - totals.payable);
   }
 
+  if (paymentMethod === "upi" && !upiId) {
+    return { ok: false, error: "Select a UPI account before marking paid" };
+  }
+
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -231,6 +245,9 @@ export async function createOrder(
       payment_method: paymentMethod,
       cash_tendered: paymentMethod === "cash" ? cashTendered ?? null : null,
       cash_change: cashChange,
+      upi_id: paymentMethod === "upi" ? upiId ?? null : null,
+      upi_name:
+        paymentMethod === "upi" ? (upiName?.trim() || upiId || null) : null,
       status: "paid",
     })
     .select("id")

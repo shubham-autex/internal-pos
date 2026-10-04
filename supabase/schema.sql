@@ -42,6 +42,9 @@ create table if not exists public.orders (
   payment_method text not null check (payment_method in ('upi', 'cash')),
   cash_tendered numeric(12, 2),
   cash_change numeric(12, 2),
+  -- Snapshot of the UPI QR shown when marked paid (null for cash).
+  upi_id text,
+  upi_name text,
   status text not null default 'paid',
   created_at timestamptz not null default now()
 );

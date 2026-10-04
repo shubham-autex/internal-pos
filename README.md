@@ -17,7 +17,8 @@ Fill in:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or anon key)
-- `NEXT_PUBLIC_UPI_ID` / `NEXT_PUBLIC_UPI_NAME` for payment QR
+- `NEXT_PUBLIC_UPI_ID` / `NEXT_PUBLIC_UPI_NAME` for a single payment QR
+- Or `NEXT_PUBLIC_UPI_ACCOUNTS` JSON list for multiple UPIs (saved on each paid order)
 
 5. Install and run:
 

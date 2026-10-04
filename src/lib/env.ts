@@ -1,3 +1,5 @@
+import { getUpiAccounts } from "@/lib/upi";
+
 export function getSupabaseUrl() {
   return process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 }
@@ -15,9 +17,11 @@ export function isSupabaseConfigured() {
 }
 
 export function getUpiId() {
-  return process.env.NEXT_PUBLIC_UPI_ID ?? "yourstall@upi";
+  return getUpiAccounts()[0]?.id ?? "yourstall@upi";
 }
 
 export function getUpiName() {
-  return process.env.NEXT_PUBLIC_UPI_NAME ?? "Mela Stall";
+  return getUpiAccounts()[0]?.name ?? "Mela Stall";
 }
+
+export { getUpiAccounts };

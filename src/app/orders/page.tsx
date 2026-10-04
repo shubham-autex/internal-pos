@@ -51,7 +51,21 @@ export default async function OrdersPage() {
                   <td className="px-4 py-3">
                     {new Date(order.created_at).toLocaleString("en-IN")}
                   </td>
-                  <td className="px-4 py-3 uppercase">{order.payment_method}</td>
+                  <td className="px-4 py-3">
+                    {order.payment_method === "cash" ? (
+                      <span className="font-medium uppercase">Cash</span>
+                    ) : (
+                      <div>
+                        <p className="font-medium uppercase">UPI</p>
+                        {order.upi_id ? (
+                          <p className="mt-0.5 break-all text-xs text-[var(--ink-muted)]">
+                            {order.upi_name ? `${order.upi_name} · ` : ""}
+                            {order.upi_id}
+                          </p>
+                        ) : null}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 font-semibold">
                     {formatINR(Number(order.total))}
                   </td>

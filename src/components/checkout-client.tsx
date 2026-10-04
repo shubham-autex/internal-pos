@@ -9,47 +9,58 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ProfitSheet } from "@/components/profit-sheet";
 import { useCart } from "@/components/cart-provider";
 import { formatINR, roundMoney } from "@/lib/money";
+import type { UpiAccount } from "@/lib/upi";
 
 type CheckoutClientProps = {
-  upiId: string;
-  upiName: string;
+  upiAccounts: UpiAccount[];
 };
 
-export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
+export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
   const { items, discountAmount, discountPercent, totals, clearCart, setQty } =
     useCart();
+  const accounts = upiAccounts.length > 0 ? upiAccounts : [];
   const [mode, setMode] = useState<"upi" | "cash">("upi");
+  const [selectedUpiId, setSelectedUpiId] = useState(accounts[0]?.id ?? "");
   const [cashTendered, setCashTendered] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [doneOrderId, setDoneOrderId] = useState<string | null>(null);
+  const [done, setDone] = useState<{
+    orderId: string;
+    method: "upi" | "cash";
+    upiId: string | null;
+    upiName: string | null;
+  } | null>(null);
   const [profitOpen, setProfitOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+
+  const selectedUpi =
+    accounts.find((account) => account.id === selectedUpiId) ?? accounts[0] ?? null;
 
   const tendered = Number(cashTendered) || 0;
   const change = roundMoney(Math.max(0, tendered - totals.payable));
 
   const upiUrl = useMemo(() => {
+    if (!selectedUpi) return "";
     const params = new URLSearchParams({
-      pa: upiId,
-      pn: upiName,
+      pa: selectedUpi.id,
+      pn: selectedUpi.name,
       am: totals.payable.toFixed(2),
       cu: "INR",
       tn: "Mela Stall order",
     });
     return `upi://pay?${params.toString()}`;
-  }, [upiId, upiName, totals.payable]);
+  }, [selectedUpi, totals.payable]);
 
   useEffect(() => {
-    if (totals.payable <= 0) {
+    if (!selectedUpi || totals.payable <= 0 || !upiUrl) {
       setQrDataUrl(null);
       return;
     }
     QRCode.toDataURL(upiUrl, { width: 280, margin: 1 })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(null));
-  }, [upiUrl, totals.payable]);
+  }, [upiUrl, totals.payable, selectedUpi]);
 
   async function complete(method: "upi" | "cash") {
     setBusy(true);
@@ -60,6 +71,8 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
       discountPercent,
       paymentMethod: method,
       cashTendered: method === "cash" ? tendered : null,
+      upiId: method === "upi" ? selectedUpi?.id ?? null : null,
+      upiName: method === "upi" ? selectedUpi?.name ?? null : null,
     });
     setBusy(false);
     if (!result.ok) {
@@ -67,10 +80,15 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
       return;
     }
     clearCart();
-    setDoneOrderId(result.orderId);
+    setDone({
+      orderId: result.orderId,
+      method,
+      upiId: method === "upi" ? selectedUpi?.id ?? null : null,
+      upiName: method === "upi" ? selectedUpi?.name ?? null : null,
+    });
   }
 
-  if (doneOrderId) {
+  if (done) {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 text-center">
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold">
@@ -78,6 +96,11 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
         </h1>
         <p className="mt-2 text-sm text-[var(--ink-muted)]">
           Order saved. Ready for the next customer.
+        </p>
+        <p className="mt-3 text-sm font-semibold">
+          {done.method === "cash"
+            ? "Cash"
+            : `UPI · ${done.upiName ?? ""}${done.upiId ? ` · ${done.upiId}` : ""}`}
         </p>
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <Link
@@ -244,9 +267,41 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
 
         {mode === "upi" ? (
           <div className="mt-5 space-y-4">
-            <p className="text-sm text-[var(--ink-muted)]">
-              Show this QR. Amount includes discounts. Set your UPI id in env.
-            </p>
+            {accounts.length > 1 ? (
+              <div>
+                <p className="mb-1.5 text-sm font-medium">UPI account</p>
+                <div className="grid gap-2">
+                  {accounts.map((account) => {
+                    const active = selectedUpi?.id === account.id;
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        onClick={() => setSelectedUpiId(account.id)}
+                        className={`rounded-xl px-3 py-2.5 text-left text-sm ${
+                          active
+                            ? "bg-[var(--ink)] text-[var(--surface)]"
+                            : "bg-[var(--surface-muted)]"
+                        }`}
+                      >
+                        <span className="block font-semibold">{account.name}</span>
+                        <span
+                          className={`mt-0.5 block break-all text-xs ${
+                            active ? "text-white/80" : "text-[var(--ink-muted)]"
+                          }`}
+                        >
+                          {account.id}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--ink-muted)]">
+                Show this QR. Amount includes discounts.
+              </p>
+            )}
             <div className="flex justify-center rounded-2xl bg-white p-3 sm:p-4">
               {qrDataUrl ? (
                 <Image
@@ -259,20 +314,22 @@ export function CheckoutClient({ upiId, upiName }: CheckoutClientProps) {
                 />
               ) : (
                 <div className="flex aspect-square w-full max-w-[220px] items-center justify-center text-sm text-[var(--ink-muted)] sm:max-w-[280px]">
-                  Generating QR…
+                  {selectedUpi ? "Generating QR…" : "No UPI account configured"}
                 </div>
               )}
             </div>
-            <p className="break-all text-center text-sm">
-              {upiName} · {upiId}
-              <br />
-              <span className="font-semibold tabular-nums">
-                {formatINR(totals.payable)}
-              </span>
-            </p>
+            {selectedUpi ? (
+              <p className="break-all text-center text-sm">
+                {selectedUpi.name} · {selectedUpi.id}
+                <br />
+                <span className="font-semibold tabular-nums">
+                  {formatINR(totals.payable)}
+                </span>
+              </p>
+            ) : null}
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !selectedUpi}
               onClick={() => complete("upi")}
               className="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-60"
             >

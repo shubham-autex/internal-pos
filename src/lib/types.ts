@@ -57,6 +57,9 @@ export type Order = {
   payment_method: PaymentMethod;
   cash_tendered: number | null;
   cash_change: number | null;
+  /** UPI VPA shown when marked paid; null for cash. */
+  upi_id: string | null;
+  upi_name: string | null;
   status: string;
   created_at: string;
 };
