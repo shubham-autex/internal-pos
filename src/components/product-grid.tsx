@@ -130,14 +130,14 @@ export function ProductGrid({ products }: { products: Product[] }) {
   );
 
   return (
-    <div className={`space-y-4 sm:pb-8 ${cartExpanded ? "pb-80" : "pb-28"}`}>
+    <div className={`space-y-3 sm:space-y-4 sm:pb-8 ${cartExpanded ? "pb-80" : "pb-28"}`}>
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight sm:text-3xl">
             Sell
           </h1>
           <p className="text-xs text-[var(--ink-muted)] sm:text-sm">
-            Scan → enter qty → cart
+            Scan → qty → cart
           </p>
         </div>
         <button
@@ -181,6 +181,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
         </p>
         <Link
           href="/checkout"
+          prefetch
           className={`block rounded-xl px-3 py-3 text-center text-sm font-semibold ${
             itemCount === 0
               ? "pointer-events-none bg-[var(--surface-muted)] text-[var(--ink-muted)]"
@@ -192,12 +193,16 @@ export function ProductGrid({ products }: { products: Product[] }) {
       </aside>
 
       <label className="block">
-        <span className="mb-1.5 block text-sm font-medium">Search SKU</span>
+        <span className="mb-1 block text-sm font-medium">Search SKU</span>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Name or SKU"
-          className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-base outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          enterKeyHint="search"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-base outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         />
       </label>
 
@@ -215,7 +220,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
         {filtered.map((product) => (
           <article
             key={product.id}
-            className="flex items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3"
+            className="product-row flex items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3"
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
@@ -259,7 +264,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
       </section>
 
       {/* Mobile sticky cart — expand on same page */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[color-mix(in_oklab,var(--surface)_96%,transparent)] backdrop-blur-md sm:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)] sm:hidden">
         {cartExpanded ? (
           <div className="border-b border-[var(--line)] px-3 pt-3">
             <div className="mb-2 flex items-center justify-between">
@@ -301,6 +306,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
           </button>
           <Link
             href="/checkout"
+            prefetch
             className={`rounded-xl px-5 py-3 text-sm font-semibold ${
               itemCount === 0
                 ? "pointer-events-none bg-[var(--surface-muted)] text-[var(--ink-muted)]"

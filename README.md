@@ -46,4 +46,4 @@ Product QR / barcode should encode the product `sku` (seed examples: `CHAI-01`, 
 - Next.js App Router (`proxy.ts` for session refresh)
 - Supabase Auth + Postgres (RLS for authenticated staff)
 - Client cart in `localStorage`
-- `@yudiel/react-qr-scanner` (Barcode Detector / ZXing) for scanning, `qrcode` for UPI QR
+- `barcode-detector` (ZXing) for SKU/QR scanning with a zoomed crop, `qrcode` for UPI QR

@@ -20,6 +20,10 @@
   --font-display: var(--font-display);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background:
     radial-gradient(1000px 480px at 0% -5%, #9fd0c8 0%, transparent 55%),
@@ -28,28 +32,61 @@ body {
   color: var(--foreground);
   font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   min-height: 100%;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  touch-action: manipulation;
 }
 
 ::selection {
   background: color-mix(in oklab, var(--accent) 40%, white);
 }
 
-/* Compact full-bleed camera for @yudiel/react-qr-scanner */
+/* Camera preview + digital zoom for small QR codes */
 .qr-inline-region {
   position: relative;
   width: 100%;
-  height: 180px;
+  height: min(42vw, 240px);
+  min-height: 200px;
   background: #000;
+  contain: layout paint;
 }
 
-.qr-inline-region video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
+.qr-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center center;
+}
+
+.qr-finder {
+  pointer-events: none;
+  position: absolute;
+  inset: 14% 18%;
+  border: 2px solid color-mix(in oklab, white 82%, var(--accent));
+  border-radius: 16px;
+  box-shadow: 0 0 0 999px rgb(0 0 0 / 28%);
 }
 
 @media (min-width: 640px) {
   .qr-inline-region {
-    height: 280px;
+    height: 300px;
+  }
+}
+
+.product-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 88px;
+}
+
+@supports not (content-visibility: auto) {
+  .product-row {
+    contain: layout style paint;
   }
 }

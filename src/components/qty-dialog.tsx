@@ -18,7 +18,7 @@ export function QtyDialog({ product, onConfirm, onCancel }: QtyDialogProps) {
   const lineTotal = unit * qty;
 
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
     inputRef.current?.select();
   }, []);
 
@@ -51,9 +51,16 @@ export function QtyDialog({ product, onConfirm, onCancel }: QtyDialogProps) {
           ref={inputRef}
           type="number"
           inputMode="numeric"
+          enterKeyHint="done"
           min={1}
           max={999}
           value={qty}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submit();
+            }
+          }}
           onChange={(e) => {
             const n = Number(e.target.value);
             if (!Number.isFinite(n)) {
@@ -111,7 +118,7 @@ export function QtyDialog({ product, onConfirm, onCancel }: QtyDialogProps) {
           onClick={submit}
           className="rounded-xl bg-[var(--accent)] px-3 py-3.5 text-sm font-semibold text-[var(--accent-ink)]"
         >
-          Add to cart
+          Add {qty}
         </button>
       </div>
     </Sheet>
