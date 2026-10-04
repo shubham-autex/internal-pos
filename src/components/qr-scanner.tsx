@@ -17,8 +17,6 @@ const DETECT_INTERVAL_MS = 90;
 const WIDE_FRAME_EVERY = 5;
 const DUP_WINDOW_MS = 700;
 
-type ZoomCaps = { min: number; max: number; step: number };
-
 type QrScannerProps = {
   open: boolean;
   onClose?: () => void;
@@ -58,8 +56,6 @@ export function QrScanner({
   const [activated, setActivated] = useState(variant === "inline" || open);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
-  const [zoomCaps, setZoomCaps] = useState<ZoomCaps | null>(null);
-  const [opticalZoom, setOpticalZoom] = useState(1);
   const [digitalZoom, setDigitalZoom] = useState(DEFAULT_DIGITAL_ZOOM);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -130,14 +126,6 @@ export function QrScanner({
           } catch {
             // Keep stream even if optical zoom is rejected.
           }
-          setZoomCaps({
-            min: caps.zoom.min,
-            max: caps.zoom.max,
-            step: caps.zoom.step && caps.zoom.step > 0 ? caps.zoom.step : 0.1,
-          });
-          setOpticalZoom(next);
-        } else {
-          setZoomCaps(null);
         }
         setTorchSupported(Boolean(caps?.torch));
         setTorchOn(false);
@@ -204,32 +192,6 @@ export function QrScanner({
       window.clearInterval(id);
     };
   }, [emitScan, live, streaming]);
-
-  const applyOpticalZoom = useCallback(
-    async (next: number) => {
-      const track = getVideoTrack(videoRef.current);
-      if (!track || !zoomCaps) return;
-      const value = Math.min(zoomCaps.max, Math.max(zoomCaps.min, next));
-      try {
-        await track.applyConstraints({
-          advanced: [{ zoom: value } as MediaTrackConstraintSet],
-        });
-        setOpticalZoom(value);
-        if (torchOn) {
-          try {
-            await track.applyConstraints({
-              advanced: [{ torch: true } as MediaTrackConstraintSet],
-            });
-          } catch {
-            setTorchOn(false);
-          }
-        }
-      } catch {
-        // Ignore unsupported zoom apply.
-      }
-    },
-    [torchOn, zoomCaps],
-  );
 
   const setDigital = useCallback((next: number) => {
     setDigitalZoom(Math.min(MAX_DIGITAL_ZOOM, Math.max(MIN_DIGITAL_ZOOM, next)));
@@ -324,36 +286,22 @@ export function QrScanner({
           </span>
         </label>
 
-        <div className="flex shrink-0 items-center gap-1">
-          {zoomCaps ? (
-            <button
-              type="button"
-              disabled={!streaming || opticalZoom >= zoomCaps.max}
-              onClick={() =>
-                applyOpticalZoom(opticalZoom + Math.max(zoomCaps.step, 0.5))
-              }
-              className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--ink)] disabled:opacity-40"
-            >
-              Lens {opticalZoom.toFixed(1)}×
-            </button>
-          ) : null}
-          {torchSupported ? (
-            <button
-              type="button"
-              aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
-              aria-pressed={torchOn}
-              disabled={!streaming}
-              onClick={toggleTorch}
-              className={`rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-40 ${
-                torchOn
-                  ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
-                  : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)]"
-              }`}
-            >
-              {torchOn ? "Flash on" : "Flash"}
-            </button>
-          ) : null}
-        </div>
+        {torchSupported ? (
+          <button
+            type="button"
+            aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
+            aria-pressed={torchOn}
+            disabled={!streaming}
+            onClick={toggleTorch}
+            className={`shrink-0 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-40 ${
+              torchOn
+                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
+                : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)]"
+            }`}
+          >
+            {torchOn ? "Flash on" : "Flash"}
+          </button>
+        ) : null}
       </div>
 
       {error ? (
