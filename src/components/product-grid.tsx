@@ -300,7 +300,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
               {itemCount} item{itemCount === 1 ? "" : "s"} · tap to{" "}
               {cartExpanded ? "hide" : "expand"}
             </p>
-            <p className="truncate text-lg font-semibold">
+            <p className="text-lg font-semibold tabular-nums leading-none">
               {formatINR(totals.payable)}
             </p>
           </button>

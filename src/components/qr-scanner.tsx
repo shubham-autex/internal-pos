@@ -307,7 +307,7 @@ export function QrScanner({
           <button
             type="button"
             aria-label="Zoom out"
-            disabled={!streaming || digitalZoom <= MIN_DIGITAL_ZOOM}
+            disabled={paused || digitalZoom <= MIN_DIGITAL_ZOOM}
             onClick={() => setDigital(digitalZoom - 0.3)}
             className="h-10 w-10 rounded-lg text-lg font-semibold text-[var(--ink)] active:bg-[var(--surface)] disabled:opacity-40"
           >
@@ -319,7 +319,7 @@ export function QrScanner({
           <button
             type="button"
             aria-label="Zoom in"
-            disabled={!streaming || digitalZoom >= MAX_DIGITAL_ZOOM}
+            disabled={paused || digitalZoom >= MAX_DIGITAL_ZOOM}
             onClick={() => setDigital(digitalZoom + 0.3)}
             className="h-10 w-10 rounded-lg text-lg font-semibold text-[var(--ink)] active:bg-[var(--surface)] disabled:opacity-40"
           >
