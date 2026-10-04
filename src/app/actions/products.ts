@@ -429,7 +429,16 @@ export async function bulkSaveProducts(
   const seenSkus = new Set<string>();
 
   rows.forEach((row, index) => {
-    const parsed = bulkRowSchema.safeParse(row);
+    const raw =
+      row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+    const parsed = bulkRowSchema.safeParse({
+      ...raw,
+      tags: parseTagsInput(
+        Array.isArray(raw.tags)
+          ? raw.tags.map((tag) => String(tag ?? "")).join(",")
+          : String(raw.tags ?? ""),
+      ),
+    });
     if (!parsed.success) {
       rowErrors.push(
         `Row ${index + 1}: ${parsed.error.issues[0]?.message ?? "Invalid"}`,
@@ -481,6 +490,7 @@ export async function bulkSaveProducts(
           sell_price: row.sell_price,
           expense_percent: row.expense_percent,
           stock: row.stock,
+          tags: row.tags,
           active: true,
         })),
       )
@@ -520,6 +530,7 @@ export async function bulkSaveProducts(
         sell_price: row.sell_price,
         expense_percent: row.expense_percent,
         stock: row.stock,
+        tags: row.tags,
       })
       .eq("id", row.id!);
 

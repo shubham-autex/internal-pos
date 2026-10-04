@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { bulkSaveProducts } from "@/app/actions/products";
+import { formatTagsInput } from "@/lib/tags";
 import type { Product } from "@/lib/types";
 
 type DraftRow = {
@@ -14,6 +15,7 @@ type DraftRow = {
   sell_price: string;
   expense_percent: string;
   stock: string;
+  tags: string;
 };
 
 const cellInputClass =
@@ -28,6 +30,7 @@ function emptyRow(): DraftRow {
     sell_price: "",
     expense_percent: "0",
     stock: "0",
+    tags: "",
   };
 }
 
@@ -41,6 +44,7 @@ function productToRow(product: Product): DraftRow {
     sell_price: String(product.sell_price ?? ""),
     expense_percent: String(product.expense_percent ?? 0),
     stock: String(product.stock ?? 0),
+    tags: formatTagsInput(product.tags),
   };
 }
 
@@ -52,6 +56,7 @@ function snapshot(row: DraftRow) {
     row.sell_price.trim(),
     row.expense_percent.trim() || "0",
     row.stock.trim() || "0",
+    row.tags.trim(),
   ].join("|");
 }
 
@@ -99,8 +104,15 @@ function parsePaste(text: string): DraftRow[] {
   if (looksLikeHeader(firstCells)) start = 1;
 
   return lines.slice(start).map((line) => {
-    const [name = "", sku = "", cost = "", sell = "", expense = "0", stock = "0"] =
-      splitLine(line);
+    const [
+      name = "",
+      sku = "",
+      cost = "",
+      sell = "",
+      expense = "0",
+      stock = "0",
+      tags = "",
+    ] = splitLine(line);
     return {
       ...emptyRow(),
       name,
@@ -109,6 +121,7 @@ function parsePaste(text: string): DraftRow[] {
       sell_price: sell,
       expense_percent: expense || "0",
       stock: stock || "0",
+      tags,
     };
   });
 }
@@ -126,7 +139,9 @@ function matchesQuery(row: DraftRow, query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   return (
-    row.name.toLowerCase().includes(q) || row.sku.toLowerCase().includes(q)
+    row.name.toLowerCase().includes(q) ||
+    row.sku.toLowerCase().includes(q) ||
+    row.tags.toLowerCase().includes(q)
   );
 }
 
@@ -206,6 +221,7 @@ export function BulkProductForm({ products }: { products: Product[] }) {
       sell_price: row.sell_price,
       expense_percent: row.expense_percent || 0,
       stock: row.stock || 0,
+      tags: row.tags,
     }));
 
     const result = await bulkSaveProducts(payload);
@@ -237,7 +253,7 @@ export function BulkProductForm({ products }: { products: Product[] }) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name or code (SKU)"
+          placeholder="Search by name, SKU, or tag"
           className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         />
       </label>
@@ -271,13 +287,13 @@ export function BulkProductForm({ products }: { products: Product[] }) {
           <p className="text-sm font-medium">Paste from Excel / CSV</p>
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
             New rows are added on top. Format: Name, SKU, Cost, Sell, Expense %,
-            Stock
+            Stock, Tags
           </p>
           <textarea
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
             rows={6}
-            placeholder={"Masala Chai, CHAI-01, 8, 20, 0, 200"}
+            placeholder={'Masala Chai, CHAI-01, 8, 20, 0, 200, "drink, hot"'}
             className="mt-3 w-full resize-y rounded-xl border border-[var(--line)] px-3 py-2.5 font-mono text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           />
           <button
@@ -291,7 +307,7 @@ export function BulkProductForm({ products }: { products: Product[] }) {
       ) : null}
 
       <div className="overflow-x-auto rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
-        <table className="min-w-[720px] w-full border-collapse text-left text-sm">
+        <table className="min-w-[880px] w-full border-collapse text-left text-sm">
           <thead className="bg-[var(--surface-muted)] text-[var(--ink-muted)]">
             <tr>
               <th className="sticky left-0 z-10 bg-[var(--surface-muted)] px-3 py-3 font-medium">
@@ -303,6 +319,7 @@ export function BulkProductForm({ products }: { products: Product[] }) {
               <th className="px-3 py-3 font-medium">Sell ₹</th>
               <th className="px-3 py-3 font-medium">Exp %</th>
               <th className="px-3 py-3 font-medium">Stock</th>
+              <th className="px-3 py-3 font-medium">Tags</th>
               <th className="px-3 py-3 font-medium">
                 <span className="sr-only">Remove</span>
               </th>
@@ -312,7 +329,7 @@ export function BulkProductForm({ products }: { products: Product[] }) {
             {visibleRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-4 py-8 text-center text-sm text-[var(--ink-muted)]"
                 >
                   {query.trim()
@@ -401,6 +418,17 @@ export function BulkProductForm({ products }: { products: Product[] }) {
                         inputMode="numeric"
                         onChange={(e) =>
                           updateRow(row.key, "stock", e.target.value)
+                        }
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className="min-w-[9rem] px-2 py-2">
+                      <input
+                        aria-label={`Tags row ${index + 1}`}
+                        value={row.tags}
+                        placeholder="snack, hot"
+                        onChange={(e) =>
+                          updateRow(row.key, "tags", e.target.value)
                         }
                         className={cellInputClass}
                       />
