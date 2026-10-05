@@ -8,6 +8,7 @@ import {
   type ProductActionState,
 } from "@/app/actions/products";
 import { QrScanner } from "@/components/qr-scanner";
+import { ComboItemPicker } from "@/components/combo-item-picker";
 import { deriveComboCosting, comboAvailableStock } from "@/lib/combo";
 import { formatINR } from "@/lib/money";
 import { formatTagsInput } from "@/lib/tags";
@@ -50,7 +51,6 @@ export function ProductForm({
       quantity: String(component.quantity),
     })),
   );
-  const [pickerId, setPickerId] = useState("");
 
   const isCombo = kind === "combo";
   const simpleById = useMemo(
@@ -85,17 +85,18 @@ export function ProductForm({
     router.push("/products");
   }, [state.success, state.productId, router]);
 
-  function addComponent() {
-    if (!pickerId) return;
-    if (components.some((row) => row.component_id === pickerId)) {
-      setPickerId("");
-      return;
-    }
-    setComponents((prev) => [
-      ...prev,
-      { component_id: pickerId, quantity: "1" },
-    ]);
-    setPickerId("");
+  function addComponents(productIds: string[]) {
+    if (productIds.length === 0) return;
+    setComponents((prev) => {
+      const existing = new Set(prev.map((row) => row.component_id));
+      const next = [...prev];
+      for (const id of productIds) {
+        if (existing.has(id)) continue;
+        existing.add(id);
+        next.push({ component_id: id, quantity: "1" });
+      }
+      return next;
+    });
   }
 
   const availableToPick = simpleProducts.filter(
@@ -231,28 +232,10 @@ export function ProductForm({
               </p>
             </div>
 
-            <div className="flex gap-2">
-              <select
-                value={pickerId}
-                onChange={(e) => setPickerId(e.target.value)}
-                className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              >
-                <option value="">Select product…</option>
-                {availableToPick.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} ({item.sku})
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={addComponent}
-                disabled={!pickerId}
-                className="shrink-0 rounded-xl border border-[var(--line)] px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
-              >
-                Add
-              </button>
-            </div>
+            <ComboItemPicker
+              products={availableToPick}
+              onAdd={addComponents}
+            />
 
             {components.length === 0 ? (
               <p className="text-sm text-[var(--ink-muted)]">
