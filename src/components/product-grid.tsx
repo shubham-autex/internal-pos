@@ -24,21 +24,21 @@ function SalePrice({
   const net = netSellPrice(listPrice, disc);
   if (disc <= 0) {
     return (
-      <span className="shrink-0 text-base font-semibold tabular-nums">
+      <span className="shrink-0 self-start text-base font-semibold tabular-nums sm:self-auto">
         {formatINR(listPrice)}
       </span>
     );
   }
   return (
-    <span className="inline-flex shrink-0 flex-col items-end gap-0.5 text-right">
-      <span className="text-sm tabular-nums text-[var(--ink-muted)] line-through">
-        {formatINR(listPrice)}
-      </span>
-      <span className="text-base font-semibold tabular-nums text-[var(--accent-ink)]">
+    <span className="inline-flex shrink-0 items-baseline gap-1.5 self-start text-left sm:self-auto sm:text-right">
+      <span className="text-base font-bold tabular-nums text-[var(--accent-ink)] sm:text-lg">
         {formatINR(net)}
       </span>
-      <span className="rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-ink)]">
-        {disc}% off
+      <span className="text-[11px] tabular-nums text-[var(--ink-muted)] line-through">
+        {formatINR(listPrice)}
+      </span>
+      <span className="rounded bg-[var(--accent-soft)] px-1 py-px text-[11px] font-semibold text-[var(--accent-ink)]">
+        {disc}%
       </span>
     </span>
   );
@@ -336,22 +336,30 @@ export function ProductGrid({ products }: { products: Product[] }) {
         </p>
       ) : null}
 
-      <section className="space-y-2">
+      <section className="space-y-1.5">
         {filtered.map((product) => {
           const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
           const room = availableStock(product);
           const out = stock <= 0 || room <= 0;
+          const stockLabel =
+            stock <= 0
+              ? "Out of stock"
+              : room <= 0
+                ? "All in cart"
+                : product.kind === "combo"
+                  ? `${stock} buildable`
+                  : `${stock} left`;
           return (
             <article
               key={product.id}
-              className="product-row flex items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3"
+              className="product-row flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2.5"
             >
               <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <h2 className="truncate font-semibold leading-snug">
+                <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
+                  <h2 className="min-w-0 text-sm font-semibold leading-snug wrap-break-word sm:truncate sm:text-base">
                     {product.name}
                     {product.kind === "combo" ? (
-                      <span className="ml-1.5 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-ink)]">
+                      <span className="ml-1.5 inline-block align-middle rounded bg-[var(--accent-soft)] px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-ink)]">
                         Combo
                       </span>
                     ) : null}
@@ -361,24 +369,22 @@ export function ProductGrid({ products }: { products: Product[] }) {
                     discountPercent={Number(product.discount_percent) || 0}
                   />
                 </div>
-                <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-                  {product.sku}
-                </p>
-                <p
-                  className={`mt-1 text-xs font-medium ${
-                    out ? "text-red-700" : "text-[var(--ink)]"
-                  }`}
-                >
-                  {stock <= 0
-                    ? "Out of stock"
-                    : room <= 0
-                      ? "All in cart"
-                      : product.kind === "combo"
-                        ? `${stock} buildable`
-                        : `${stock} left`}
-                </p>
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span className="max-w-full truncate rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-wide text-[var(--ink)]">
+                    {product.sku}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
+                      out
+                        ? "bg-red-50 text-red-700"
+                        : "bg-[var(--surface-muted)] text-[var(--ink)]"
+                    }`}
+                  >
+                    {stockLabel}
+                  </span>
+                </div>
               </div>
-              <div className="flex shrink-0 flex-col gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -386,7 +392,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
                     e.stopPropagation();
                     openInfo(product);
                   }}
-                  className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-semibold text-[var(--ink)]"
+                  className="inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-[var(--line)] px-2.5 text-xs font-semibold text-[var(--ink)] sm:h-11 sm:rounded-xl sm:px-3 sm:text-sm"
                 >
                   Info
                 </button>
@@ -394,7 +400,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
                   type="button"
                   onClick={() => askQty(product)}
                   disabled={out}
-                  className="rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-40"
+                  className="inline-flex h-10 min-w-14 items-center justify-center rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-[var(--accent-ink)] disabled:opacity-40 sm:h-11 sm:min-w-16 sm:rounded-xl sm:text-sm"
                 >
                   Add
                 </button>

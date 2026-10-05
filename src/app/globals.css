@@ -22,13 +22,18 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* min-height (not height:100%) so the root bg covers the full scroll canvas */
+  min-height: 100%;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(1000px 480px at 0% 0%, #9fd0c8 0%, transparent 55%),
+    radial-gradient(800px 420px at 100% 0%, #f6d27a 0%, transparent 48%);
+  background-repeat: no-repeat;
+  background-position: 0 0, 100% 0;
 }
 
 body {
-  background:
-    radial-gradient(1000px 480px at 0% -5%, #9fd0c8 0%, transparent 55%),
-    radial-gradient(800px 420px at 100% 0%, #f6d27a 0%, transparent 48%),
-    linear-gradient(180deg, #edf3f5 0%, #e7eef0 45%, #dfe8eb 100%);
+  background-color: transparent;
   color: var(--foreground);
   font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   min-height: 100%;
@@ -100,7 +105,7 @@ select {
 
 .product-row {
   content-visibility: auto;
-  contain-intrinsic-size: auto none auto 88px;
+  contain-intrinsic-size: auto none auto 64px;
 }
 
 @supports not (content-visibility: auto) {
