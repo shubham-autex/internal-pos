@@ -10,7 +10,7 @@ import {
 import { QrScanner } from "@/components/qr-scanner";
 import { ComboItemPicker } from "@/components/combo-item-picker";
 import { deriveComboCosting, comboAvailableStock } from "@/lib/combo";
-import { formatINR } from "@/lib/money";
+import { formatINR, roundMoney } from "@/lib/money";
 import { formatTagsInput } from "@/lib/tags";
 import type { Product, ProductKind } from "@/lib/types";
 
@@ -77,7 +77,13 @@ export function ProductForm({
 
     const costing = deriveComboCosting(sell, inputs);
     const stock = comboAvailableStock(inputs);
-    return { ...costing, stock };
+    const sell_total = roundMoney(
+      inputs.reduce(
+        (sum, item) => sum + Number(item.sell_price) * item.quantity,
+        0,
+      ),
+    );
+    return { ...costing, stock, sell_total };
   }, [isCombo, sellPrice, components, simpleById]);
 
   useEffect(() => {
@@ -300,15 +306,15 @@ export function ProductForm({
 
             <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
               <div className="rounded-xl border border-[var(--line)] p-2">
-                <dt className="text-xs text-[var(--ink-muted)]">Derived cost</dt>
+                <dt className="text-xs text-[var(--ink-muted)]">Total cost</dt>
                 <dd className="font-semibold">
                   {formatINR(derived?.cost_price ?? 0)}
                 </dd>
               </div>
               <div className="rounded-xl border border-[var(--line)] p-2">
-                <dt className="text-xs text-[var(--ink-muted)]">Derived exp</dt>
+                <dt className="text-xs text-[var(--ink-muted)]">Total sell</dt>
                 <dd className="font-semibold">
-                  {derived?.expense_percent ?? 0}%
+                  {formatINR(derived?.sell_total ?? 0)}
                 </dd>
               </div>
               <div className="rounded-xl border border-[var(--line)] p-2">
