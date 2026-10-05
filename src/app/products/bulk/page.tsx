@@ -10,7 +10,10 @@ export default async function BulkProductsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { products, error } = await loadActiveProducts(supabase);
+  const { products, error } = await loadActiveProducts(supabase, {
+    orderBy: "sku",
+    ascending: false,
+  });
   const simpleProducts = products.filter((product) => product.kind !== "combo");
 
   return (

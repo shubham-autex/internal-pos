@@ -10,7 +10,10 @@ export default async function ProductsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { products, error } = await loadActiveProducts(supabase);
+  const { products, error } = await loadActiveProducts(supabase, {
+    orderBy: "sku",
+    ascending: false,
+  });
 
   return (
     <AppShell email={user?.email}>

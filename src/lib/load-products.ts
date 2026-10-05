@@ -22,18 +22,38 @@ function asProduct(row: Record<string, unknown>): Product {
 
 export async function loadActiveProducts(
   supabase: SupabaseClient,
+  options?: {
+    orderBy?: "name" | "sku";
+    ascending?: boolean;
+  },
 ): Promise<{ products: Product[]; error: string | null }> {
+  const orderBy = options?.orderBy ?? "name";
+  const ascending = options?.ascending ?? true;
+
   const { data, error } = await supabase
     .from("products")
     .select("*")
     .eq("active", true)
-    .order("name");
+    .order(orderBy, { ascending });
 
   if (error) {
     return { products: [], error: error.message };
   }
 
-  const products = (data ?? []).map((row) => asProduct(row as Record<string, unknown>));
+  let products = (data ?? []).map((row) =>
+    asProduct(row as Record<string, unknown>),
+  );
+
+  // Locale-aware numeric sort so SKUs like …009 sort above …010 correctly.
+  if (orderBy === "sku") {
+    products = [...products].sort((a, b) => {
+      const cmp = a.sku.localeCompare(b.sku, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+      return ascending ? cmp : -cmp;
+    });
+  }
   const byId = new Map(products.map((product) => [product.id, product]));
   const comboIds = products
     .filter((product) => product.kind === "combo")
