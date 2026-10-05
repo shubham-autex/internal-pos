@@ -19,7 +19,9 @@ export type Product = {
   kind: ProductKind;
   cost_price: number;
   sell_price: number;
-  /** Operating expense as a percent of sell price (0–100). */
+  /** Percent discount off sell price (0–100). */
+  discount_percent: number;
+  /** Operating expense as a percent of net sell price (0–100). */
   expense_percent: number;
   stock: number;
   /** Labels for dashboard grouping — same tag rolls up across products. */

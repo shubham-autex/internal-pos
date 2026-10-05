@@ -20,23 +20,34 @@ export function expenseAmount(sellPrice: number, expensePercent: number) {
   return roundMoney((sellPrice * clampPercent(expensePercent)) / 100);
 }
 
+/** Sell after product-level discount % (never below 0). */
+export function netSellPrice(sellPrice: number, discountPercent = 0) {
+  const sell = Number(sellPrice) || 0;
+  return roundMoney(
+    Math.max(0, sell - expenseAmount(sell, discountPercent)),
+  );
+}
+
 export function unitProfit(
   sellPrice: number,
   costPrice: number,
   expensePercent = 0,
+  discountPercent = 0,
 ) {
-  return roundMoney(
-    sellPrice - costPrice - expenseAmount(sellPrice, expensePercent),
-  );
+  const net = netSellPrice(sellPrice, discountPercent);
+  return roundMoney(net - costPrice - expenseAmount(net, expensePercent));
 }
 
 export function marginPercent(
   sellPrice: number,
   costPrice: number,
   expensePercent = 0,
+  discountPercent = 0,
 ) {
-  if (sellPrice <= 0) return 0;
+  const net = netSellPrice(sellPrice, discountPercent);
+  if (net <= 0) return 0;
   return roundMoney(
-    (unitProfit(sellPrice, costPrice, expensePercent) / sellPrice) * 100,
+    (unitProfit(sellPrice, costPrice, expensePercent, discountPercent) / net) *
+      100,
   );
 }

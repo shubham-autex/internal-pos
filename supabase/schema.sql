@@ -11,6 +11,7 @@ create table if not exists public.products (
   kind text not null default 'simple' check (kind in ('simple', 'combo')),
   cost_price numeric(12, 2) not null check (cost_price >= 0),
   sell_price numeric(12, 2) not null check (sell_price >= 0),
+  discount_percent numeric(5, 2) not null default 0 check (discount_percent >= 0 and discount_percent <= 100),
   expense_percent numeric(5, 2) not null default 0 check (expense_percent >= 0 and expense_percent <= 100),
   stock integer not null default 0,
   tags text[] not null default '{}',

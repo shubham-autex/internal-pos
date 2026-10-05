@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { deleteProduct } from "@/app/actions/products";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { formatINR } from "@/lib/money";
+import { formatINR, marginPercent } from "@/lib/money";
 import type { Product } from "@/lib/types";
 
 export function ProductList({ products }: { products: Product[] }) {
@@ -45,6 +45,8 @@ export function ProductList({ products }: { products: Product[] }) {
                   Cost
                 </th>
                 <th className="px-3 py-3 font-medium sm:px-4">SP</th>
+                <th className="px-3 py-3 font-medium sm:px-4">Disc %</th>
+                <th className="px-3 py-3 font-medium sm:px-4">Profit %</th>
                 <th className="px-3 py-3 font-medium sm:px-4">Stock</th>
                 <th className="hidden px-4 py-3 font-medium md:table-cell">
                   Tags
@@ -57,6 +59,13 @@ export function ProductList({ products }: { products: Product[] }) {
             <tbody>
               {products.map((product) => {
                 const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
+                const profitPct = marginPercent(
+                  Number(product.sell_price),
+                  Number(product.cost_price),
+                  Number(product.expense_percent) || 0,
+                  Number(product.discount_percent) || 0,
+                );
+                const disc = Number(product.discount_percent) || 0;
                 return (
                   <tr
                     key={product.id}
@@ -83,6 +92,14 @@ export function ProductList({ products }: { products: Product[] }) {
                     </td>
                     <td className="px-3 py-3 font-semibold tabular-nums sm:px-4">
                       {formatINR(Number(product.sell_price))}
+                    </td>
+                    <td className="px-3 py-3 tabular-nums sm:px-4">{disc}%</td>
+                    <td
+                      className={`px-3 py-3 font-semibold tabular-nums sm:px-4 ${
+                        profitPct < 0 ? "text-red-700" : ""
+                      }`}
+                    >
+                      {profitPct}%
                     </td>
                     <td
                       className={`px-3 py-3 tabular-nums sm:px-4 ${
@@ -140,7 +157,8 @@ export function ProductList({ products }: { products: Product[] }) {
             Tap a name to edit. * = combo buildable qty.
           </p>
           <p className="hidden border-t border-[var(--line)] px-4 py-2 text-xs text-[var(--ink-muted)] sm:block">
-            * Combo stock is how many can be built from components.
+            Profit % is after discount % and expenses. * Combo stock is
+            buildable qty.
           </p>
         </div>
       )}

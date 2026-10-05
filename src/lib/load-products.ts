@@ -12,6 +12,7 @@ function asProduct(row: Record<string, unknown>): Product {
     kind: (row.kind as ProductKind) || "simple",
     cost_price: Number(row.cost_price) || 0,
     sell_price: Number(row.sell_price) || 0,
+    discount_percent: Number(row.discount_percent) || 0,
     expense_percent: Number(row.expense_percent) || 0,
     stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
     tags: asTagList(row.tags),

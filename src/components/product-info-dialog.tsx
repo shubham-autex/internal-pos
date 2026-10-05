@@ -19,9 +19,10 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
   const sell = Number(product.sell_price);
   const cost = Number(product.cost_price);
   const expensePct = Number(product.expense_percent) || 0;
+  const discountPct = Number(product.discount_percent) || 0;
   const expense = expenseAmount(sell, expensePct);
-  const profit = unitProfit(sell, cost, expensePct);
-  const margin = marginPercent(sell, cost, expensePct);
+  const profit = unitProfit(sell, cost, expensePct, discountPct);
+  const margin = marginPercent(sell, cost, expensePct, discountPct);
   const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
   const isCombo = product.kind === "combo";
   const components = product.components ?? [];
@@ -48,6 +49,10 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
           <dd className="text-xl font-semibold">{formatINR(cost)}</dd>
         </div>
         <div className="rounded-xl bg-[var(--surface-muted)] p-3">
+          <dt className="text-[var(--ink-muted)]">Discount</dt>
+          <dd className="text-xl font-semibold">{discountPct}%</dd>
+        </div>
+        <div className="rounded-xl bg-[var(--surface-muted)] p-3">
           <dt className="text-[var(--ink-muted)]">
             Expense{isCombo ? " (from items)" : ""}
           </dt>
@@ -57,14 +62,14 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
           </dd>
         </div>
         <div className="rounded-xl bg-[var(--accent-soft)] p-3">
-          <dt className="text-[var(--ink-muted)]">Margin</dt>
+          <dt className="text-[var(--ink-muted)]">Profit %</dt>
           <dd className="text-xl font-semibold">{margin}%</dd>
         </div>
-        <div className="col-span-2 rounded-xl bg-[var(--accent-soft)] p-3">
+        <div className="rounded-xl bg-[var(--accent-soft)] p-3">
           <dt className="text-[var(--ink-muted)]">Unit profit</dt>
           <dd className="text-xl font-semibold">{formatINR(profit)}</dd>
           <dd className="mt-0.5 text-xs text-[var(--ink-muted)]">
-            Sell − cost − expense
+            After discount % & expense
           </dd>
         </div>
         <div className="col-span-2 rounded-xl border border-[var(--line)] p-3">

@@ -14,6 +14,11 @@ const productSchema = z.object({
   kind: z.enum(["simple", "combo"]).default("simple"),
   cost_price: z.coerce.number().min(0, "Cost must be 0 or more"),
   sell_price: z.coerce.number().min(0, "Sell price must be 0 or more"),
+  discount_percent: z.coerce
+    .number()
+    .min(0, "Discount % must be 0 or more")
+    .max(100, "Discount % cannot exceed 100")
+    .default(0),
   expense_percent: z.coerce
     .number()
     .min(0, "Expense % must be 0 or more")
@@ -65,6 +70,7 @@ function parseProductForm(formData: FormData) {
     kind: formData.get("kind") || "simple",
     cost_price: formData.get("cost_price"),
     sell_price: formData.get("sell_price"),
+    discount_percent: formData.get("discount_percent") || 0,
     expense_percent: formData.get("expense_percent") || 0,
     stock: formData.get("stock") || 0,
     tags: parseTagsInput(String(formData.get("tags") ?? "")),
@@ -250,6 +256,7 @@ export async function createProduct(
       kind,
       cost_price,
       sell_price: parsed.data.sell_price,
+      discount_percent: parsed.data.discount_percent,
       expense_percent,
       stock,
       tags: parsed.data.tags,
@@ -342,6 +349,7 @@ export async function updateProduct(
       kind: effectiveKind,
       cost_price,
       sell_price: parsed.data.sell_price,
+      discount_percent: parsed.data.discount_percent,
       expense_percent,
       stock,
       tags: parsed.data.tags,
@@ -488,6 +496,7 @@ export async function bulkSaveProducts(
           kind: "simple",
           cost_price: row.cost_price,
           sell_price: row.sell_price,
+          discount_percent: row.discount_percent,
           expense_percent: row.expense_percent,
           stock: row.stock,
           tags: row.tags,
@@ -528,6 +537,7 @@ export async function bulkSaveProducts(
         description: row.description ?? null,
         cost_price: row.cost_price,
         sell_price: row.sell_price,
+        discount_percent: row.discount_percent,
         expense_percent: row.expense_percent,
         stock: row.stock,
         tags: row.tags,

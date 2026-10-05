@@ -10,7 +10,12 @@ import {
 import { QrScanner } from "@/components/qr-scanner";
 import { ComboItemPicker } from "@/components/combo-item-picker";
 import { deriveComboCosting, comboAvailableStock } from "@/lib/combo";
-import { formatINR, roundMoney } from "@/lib/money";
+import {
+  formatINR,
+  marginPercent,
+  roundMoney,
+  unitProfit,
+} from "@/lib/money";
 import { formatTagsInput } from "@/lib/tags";
 import type { Product, ProductKind } from "@/lib/types";
 
@@ -44,6 +49,19 @@ export function ProductForm({
   const [kind, setKind] = useState<ProductKind>(lockedKind);
   const [sellPrice, setSellPrice] = useState(
     product ? String(product.sell_price) : "",
+  );
+  const [costPrice, setCostPrice] = useState(
+    product ? String(product.cost_price) : "",
+  );
+  const [expensePercent, setExpensePercent] = useState(
+    product ? String(product.expense_percent ?? 0) : "0",
+  );
+  const [discountPercent, setDiscountPercent] = useState(
+    product ? String(product.discount_percent ?? 0) : "0",
+  );
+  /** Once the user edits sell, stop auto-filling from total cost. */
+  const [sellTouched, setSellTouched] = useState(
+    Boolean(product && Number(product.sell_price) > 0),
   );
   const [components, setComponents] = useState<ComponentDraft[]>(() =>
     (product?.components ?? []).map((component) => ({
@@ -83,8 +101,47 @@ export function ProductForm({
         0,
       ),
     );
-    return { ...costing, stock, sell_total };
+    const profit = roundMoney(
+      sell - costing.cost_price - costing.expense_rupees,
+    );
+    return { ...costing, stock, sell_total, profit };
   }, [isCombo, sellPrice, components, simpleById]);
+
+  const simpleProfitPct = useMemo(() => {
+    if (isCombo) return null;
+    return marginPercent(
+      Number(sellPrice) || 0,
+      Number(costPrice) || 0,
+      Number(expensePercent) || 0,
+      Number(discountPercent) || 0,
+    );
+  }, [isCombo, sellPrice, costPrice, expensePercent, discountPercent]);
+
+  const comboStats = useMemo(() => {
+    if (!derived) return null;
+    const sell = Number(sellPrice) || 0;
+    const disc = Number(discountPercent) || 0;
+    const profit = unitProfit(
+      sell,
+      derived.cost_price,
+      derived.expense_percent,
+      disc,
+    );
+    const profitPct = marginPercent(
+      sell,
+      derived.cost_price,
+      derived.expense_percent,
+      disc,
+    );
+    return { profit, profitPct };
+  }, [derived, sellPrice, discountPercent]);
+
+  useEffect(() => {
+    if (!isCombo || sellTouched) return;
+    const cost = derived?.cost_price ?? 0;
+    if (cost <= 0) return;
+    setSellPrice(String(cost));
+  }, [isCombo, sellTouched, derived?.cost_price]);
 
   useEffect(() => {
     if (!state.success || !state.productId) return;
@@ -304,7 +361,7 @@ export function ProductForm({
               </ul>
             )}
 
-            <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
               <div className="rounded-xl border border-[var(--line)] p-2">
                 <dt className="text-xs text-[var(--ink-muted)]">Total cost</dt>
                 <dd className="font-semibold">
@@ -318,14 +375,24 @@ export function ProductForm({
                 </dd>
               </div>
               <div className="rounded-xl border border-[var(--line)] p-2">
-                <dt className="text-xs text-[var(--ink-muted)]">Buildable</dt>
-                <dd className="font-semibold">{derived?.stock ?? 0}</dd>
-              </div>
-              <div className="rounded-xl border border-[var(--line)] p-2">
                 <dt className="text-xs text-[var(--ink-muted)]">Exp ₹</dt>
                 <dd className="font-semibold">
                   {formatINR(derived?.expense_rupees ?? 0)}
                 </dd>
+              </div>
+              <div className="rounded-xl border border-[var(--line)] p-2">
+                <dt className="text-xs text-[var(--ink-muted)]">Profit</dt>
+                <dd
+                  className={`font-semibold ${
+                    (derived?.profit ?? 0) < 0 ? "text-red-700" : ""
+                  }`}
+                >
+                  {formatINR(derived?.profit ?? 0)}
+                </dd>
+              </div>
+              <div className="rounded-xl border border-[var(--line)] p-2">
+                <dt className="text-xs text-[var(--ink-muted)]">Buildable</dt>
+                <dd className="font-semibold">{derived?.stock ?? 0}</dd>
               </div>
             </dl>
           </div>
@@ -339,7 +406,8 @@ export function ProductForm({
                 name="cost_price"
                 required
                 inputMode="decimal"
-                defaultValue={product ? String(product.cost_price) : undefined}
+                value={costPrice}
+                onChange={(e) => setCostPrice(e.target.value)}
                 className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               />
             </label>
@@ -351,10 +419,43 @@ export function ProductForm({
               required
               inputMode="decimal"
               value={sellPrice}
-              onChange={(e) => setSellPrice(e.target.value)}
+              onChange={(e) => {
+                setSellTouched(true);
+                setSellPrice(e.target.value);
+              }}
               className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             />
+            {isCombo ? (
+              <span className="mt-1.5 block text-xs text-[var(--ink-muted)]">
+                Defaults to total cost. Profit after discount & expenses →{" "}
+                <strong
+                  className={
+                    (comboStats?.profit ?? 0) < 0
+                      ? "text-red-700"
+                      : "text-[var(--ink)]"
+                  }
+                >
+                  {formatINR(comboStats?.profit ?? 0)}
+                </strong>
+                {comboStats ? <> ({comboStats.profitPct}%)</> : null}
+              </span>
+            ) : null}
           </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium">Discount %</span>
+            <input
+              name="discount_percent"
+              inputMode="decimal"
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(e.target.value)}
+              className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            />
+            <span className="mt-1 block text-xs text-[var(--ink-muted)]">
+              Off sell price for catalog / profit %.
+            </span>
+          </label>
+
           {!isCombo ? (
             <>
               <label className="block">
@@ -362,13 +463,12 @@ export function ProductForm({
                 <input
                   name="expense_percent"
                   inputMode="decimal"
-                  defaultValue={
-                    product ? String(product.expense_percent ?? 0) : "0"
-                  }
+                  value={expensePercent}
+                  onChange={(e) => setExpensePercent(e.target.value)}
                   className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                 />
                 <span className="mt-1 block text-xs text-[var(--ink-muted)]">
-                  Percent of sell price used in costing.
+                  Percent of net sell used in costing.
                 </span>
               </label>
               <label className="block">
@@ -380,8 +480,32 @@ export function ProductForm({
                   className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                 />
               </label>
+              <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 sm:col-span-2">
+                <p className="text-xs text-[var(--ink-muted)]">Profit %</p>
+                <p
+                  className={`text-lg font-semibold tabular-nums ${
+                    (simpleProfitPct ?? 0) < 0 ? "text-red-700" : ""
+                  }`}
+                >
+                  {simpleProfitPct ?? 0}%
+                </p>
+                <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
+                  After discount % and expenses.
+                </p>
+              </div>
             </>
-          ) : null}
+          ) : (
+            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5">
+              <p className="text-xs text-[var(--ink-muted)]">Profit %</p>
+              <p
+                className={`text-lg font-semibold tabular-nums ${
+                  (comboStats?.profitPct ?? 0) < 0 ? "text-red-700" : ""
+                }`}
+              >
+                {comboStats?.profitPct ?? 0}%
+              </p>
+            </div>
+          )}
         </div>
 
         {state.error ? (
