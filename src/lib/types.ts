@@ -21,7 +21,7 @@ export type Product = {
   sell_price: number;
   /** Percent discount off sell price (0–100). */
   discount_percent: number;
-  /** Operating expense as a percent of net sell price (0–100). */
+  /** Operating expense as a percent of cost price (0–100). */
   expense_percent: number;
   stock: number;
   /** Labels for dashboard grouping — same tag rolls up across products. */
@@ -38,8 +38,10 @@ export type CartItem = {
   sku: string;
   sellPrice: number;
   costPrice: number;
-  /** Snapshot of product expense % of sell price. */
+  /** Snapshot of product expense % of cost price. */
   expensePercent: number;
+  /** Snapshot of product discount % off list sell price (0–100). */
+  discountPercent: number;
   qty: number;
   /** Snapshot of available stock when the item was last synced from a product. */
   stock: number;

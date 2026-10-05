@@ -12,29 +12,23 @@ export type ComboCostingInput = {
   quantity: number;
 };
 
-export function deriveComboCosting(
-  sellPrice: number,
-  components: ComboCostingInput[],
-) {
+/** Cost and expense from components. Expense % is of cost, not sell. */
+export function deriveComboCosting(components: ComboCostingInput[]) {
   let cost = 0;
   let expenseRupees = 0;
 
   for (const component of components) {
     const qty = Math.max(0, Math.floor(Number(component.quantity) || 0));
-    cost += Number(component.cost_price) * qty;
+    const unitCost = Number(component.cost_price) || 0;
+    cost += unitCost * qty;
     expenseRupees +=
-      expenseAmount(
-        Number(component.sell_price),
-        Number(component.expense_percent) || 0,
-      ) * qty;
+      expenseAmount(unitCost, Number(component.expense_percent) || 0) * qty;
   }
 
   cost = roundMoney(cost);
   expenseRupees = roundMoney(expenseRupees);
   const expense_percent =
-    sellPrice > 0
-      ? clampPercent(roundMoney((expenseRupees / sellPrice) * 100))
-      : 0;
+    cost > 0 ? clampPercent(roundMoney((expenseRupees / cost) * 100)) : 0;
 
   return {
     cost_price: cost,

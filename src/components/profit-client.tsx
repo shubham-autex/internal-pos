@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useCart } from "@/components/cart-provider";
+import { CartTotalsSummary } from "@/components/cart-totals-summary";
 import { computeCartTotals } from "@/lib/cart-math";
 import { formatINR } from "@/lib/money";
 
@@ -108,10 +109,11 @@ export function ProfitClient() {
           className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5"
         >
           <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
-            Custom discount
+            Extra cart discount
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Edit below to preview. Totals only change after Apply.
+            Product discounts are already in the cart. Edit below to preview extra
+            off; totals only change after Apply.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="block">
@@ -140,29 +142,13 @@ export function ProfitClient() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
               Live preview
             </p>
-            <dl className="space-y-1.5">
-              <div className="flex justify-between">
-                <dt className="text-[var(--ink-muted)]">Subtotal</dt>
-                <dd>{formatINR(preview.subtotal)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-[var(--ink-muted)]">
-                  Discount
-                  {draftPercent > 0
-                    ? ` (${formatINR(Math.max(0, draftAmount))} + ${draftPercent}%)`
-                    : ""}
-                </dt>
-                <dd>−{formatINR(preview.discountTotal)}</dd>
-              </div>
-              <div className="flex justify-between font-semibold">
-                <dt>Payable</dt>
-                <dd>{formatINR(preview.payable)}</dd>
-              </div>
-              <div className="flex justify-between font-semibold text-[var(--accent-ink)]">
-                <dt>Profit</dt>
-                <dd>{formatINR(preview.profit)}</dd>
-              </div>
-            </dl>
+            <CartTotalsSummary totals={preview} showListSubtotal />
+            <p className="mt-3 border-t border-[var(--line)] pt-3 text-sm">
+              <span className="text-[var(--ink-muted)]">Est. profit </span>
+              <span className="font-semibold text-[var(--accent-ink)]">
+                {formatINR(preview.profit)}
+              </span>
+            </p>
           </div>
 
           <button
@@ -190,28 +176,19 @@ export function ProfitClient() {
               </span>
             ) : null}
           </div>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-[var(--ink-muted)]">Subtotal</dt>
-              <dd>{formatINR(totals.subtotal)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-[var(--ink-muted)]">Discount</dt>
-              <dd>−{formatINR(totals.discountTotal)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-[var(--ink-muted)]">Cost</dt>
-              <dd>{formatINR(totals.costTotal)}</dd>
-            </div>
-            <div className="flex justify-between text-base font-semibold">
-              <dt>Payable</dt>
-              <dd>{formatINR(totals.payable)}</dd>
-            </div>
-            <div className="flex justify-between text-lg font-semibold text-[var(--accent-ink)]">
-              <dt>Profit</dt>
-              <dd>{formatINR(totals.profit)}</dd>
-            </div>
-          </dl>
+          <div className="mt-4 space-y-3 text-sm">
+            <CartTotalsSummary totals={totals} showListSubtotal />
+            <dl className="space-y-2 border-t border-[var(--line)] pt-3">
+              <div className="flex justify-between">
+                <dt className="text-[var(--ink-muted)]">Cost</dt>
+                <dd>{formatINR(totals.costTotal)}</dd>
+              </div>
+              <div className="flex justify-between text-lg font-semibold text-[var(--accent-ink)]">
+                <dt>Profit</dt>
+                <dd>{formatINR(totals.profit)}</dd>
+              </div>
+            </dl>
+          </div>
           {hasPendingChanges ? (
             <p className="mt-4 text-xs text-[var(--ink-muted)]">
               Checkout still uses the applied values until you press Apply.

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Sheet } from "@/components/sheet";
 import { useCart } from "@/components/cart-provider";
+import { CartTotalsSummary } from "@/components/cart-totals-summary";
 import { computeCartTotals } from "@/lib/cart-math";
 import { formatINR } from "@/lib/money";
 
@@ -42,20 +43,25 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
     setDiscounts(draftAmount, draftPercent);
     setJustApplied(true);
     window.setTimeout(() => setJustApplied(false), 1800);
+    // delay closing the sheet to allow the user to see the applied discount
+    window.setTimeout(() => {
+      onClose();
+    }, 1000);
   }
 
   return (
     <Sheet open={open} onClose={onClose} title="Profit & discount" size="lg">
       <div className="space-y-4">
         <p className="text-sm text-[var(--ink-muted)]">
-          Preview discounts live, then Apply to update checkout.
+          Product catalog discounts are included automatically. Add extra fixed ₹
+          or % off the cart below, preview, then Apply.
         </p>
 
         <form
           onSubmit={applyDiscounts}
           className="rounded-2xl border border-[var(--line)] p-3 sm:p-4"
         >
-          <h3 className="font-semibold">Custom discount</h3>
+          <h3 className="font-semibold">Extra cart discount</h3>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">Fixed ₹</span>
@@ -83,19 +89,8 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
               Live preview
             </p>
-            <dl className="space-y-1.5">
-              <div className="flex justify-between">
-                <dt className="text-[var(--ink-muted)]">Subtotal</dt>
-                <dd>{formatINR(preview.subtotal)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-[var(--ink-muted)]">Discount</dt>
-                <dd>−{formatINR(preview.discountTotal)}</dd>
-              </div>
-              <div className="flex justify-between font-semibold">
-                <dt>Payable</dt>
-                <dd>{formatINR(preview.payable)}</dd>
-              </div>
+            <CartTotalsSummary totals={preview} showListSubtotal />
+            <dl className="mt-3 space-y-1.5 border-t border-[var(--line)] pt-3">
               <div className="flex justify-between">
                 <dt className="text-[var(--ink-muted)]">Expense</dt>
                 <dd>−{formatINR(preview.expenseTotal)}</dd>
@@ -154,14 +149,22 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
                       </p>
                       <p className="text-xs text-[var(--ink-muted)]">
                         {line.qty}× · {line.sku}
+                        {line.discountPercent > 0
+                          ? ` · ${line.discountPercent}% product off`
+                          : ""}
                       </p>
                     </div>
                     <p className="shrink-0 text-sm font-semibold text-[var(--accent-ink)]">
                       {formatINR(line.lineProfit)} profit
                     </p>
                   </div>
-                  <div className="mt-1 flex justify-between gap-2 text-xs text-[var(--ink-muted)]">
-                    <span>Sell {formatINR(line.lineTotal)}</span>
+                  <div className="mt-1 flex flex-wrap justify-between gap-x-2 gap-y-0.5 text-xs text-[var(--ink-muted)]">
+                    <span>
+                      Sell {formatINR(line.lineTotal)}
+                      {line.lineProductDiscount > 0
+                        ? ` (was ${formatINR(line.lineListTotal)})`
+                        : ""}
+                    </span>
                     <span>Cost {formatINR(line.lineCost)}</span>
                     <span>
                       Exp {formatINR(line.lineExpense)}
@@ -176,15 +179,10 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
 
         <div className="rounded-2xl border border-[var(--line)] p-3 sm:p-4">
           <h3 className="font-semibold">Applied on checkout</h3>
-          <dl className="mt-3 space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-[var(--ink-muted)]">Discount</dt>
-              <dd>−{formatINR(totals.discountTotal)}</dd>
-            </div>
-            <div className="flex justify-between font-semibold">
-              <dt>Payable</dt>
-              <dd>{formatINR(totals.payable)}</dd>
-            </div>
+          <div className="mt-3">
+            <CartTotalsSummary totals={totals} showListSubtotal />
+          </div>
+          <dl className="mt-3 space-y-1.5 border-t border-[var(--line)] pt-3 text-sm">
             <div className="flex justify-between">
               <dt className="text-[var(--ink-muted)]">Expense</dt>
               <dd>−{formatINR(totals.expenseTotal)}</dd>

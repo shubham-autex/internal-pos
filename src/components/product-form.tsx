@@ -93,7 +93,7 @@ export function ProductForm({
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
-    const costing = deriveComboCosting(sell, inputs);
+    const costing = deriveComboCosting(inputs);
     const stock = comboAvailableStock(inputs);
     const sell_total = roundMoney(
       inputs.reduce(
@@ -468,7 +468,7 @@ export function ProductForm({
                   className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                 />
                 <span className="mt-1 block text-xs text-[var(--ink-muted)]">
-                  Percent of net sell used in costing.
+                  Percent of cost used in costing.
                 </span>
               </label>
               <label className="block">

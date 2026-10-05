@@ -90,7 +90,6 @@ function revalidateProductPaths(productId?: string) {
 
 async function resolveComboFields(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  sellPrice: number,
   components: Array<{ component_id: string; quantity: number }>,
   excludeProductId?: string,
 ) {
@@ -132,7 +131,7 @@ async function resolveComboFields(
     });
   }
 
-  const derived = deriveComboCosting(sellPrice, costingInputs);
+  const derived = deriveComboCosting(costingInputs);
   return {
     cost_price: derived.cost_price,
     expense_percent: derived.expense_percent,
@@ -191,7 +190,6 @@ async function recomputeCombosUsingComponent(
 
     const resolved = await resolveComboFields(
       supabase,
-      Number(combo.sell_price) || 0,
       (bom ?? []).map((row) => ({
         component_id: String(row.component_id),
         quantity: Math.max(1, Math.floor(Number(row.quantity) || 1)),
@@ -235,7 +233,6 @@ export async function createProduct(
     if (!bom.success) return { error: bom.error };
     const resolved = await resolveComboFields(
       supabase,
-      parsed.data.sell_price,
       bom.data,
     );
     if ("error" in resolved && resolved.error) {
@@ -327,7 +324,6 @@ export async function updateProduct(
     if (!bom.success) return { error: bom.error };
     const resolved = await resolveComboFields(
       supabase,
-      parsed.data.sell_price,
       bom.data,
       productId,
     );

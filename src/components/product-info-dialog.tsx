@@ -20,7 +20,7 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
   const cost = Number(product.cost_price);
   const expensePct = Number(product.expense_percent) || 0;
   const discountPct = Number(product.discount_percent) || 0;
-  const expense = expenseAmount(sell, expensePct);
+  const expense = expenseAmount(cost, expensePct);
   const profit = unitProfit(sell, cost, expensePct, discountPct);
   const margin = marginPercent(sell, cost, expensePct, discountPct);
   const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
@@ -58,7 +58,7 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
           </dt>
           <dd className="text-xl font-semibold">{expensePct}%</dd>
           <dd className="mt-0.5 text-xs text-[var(--ink-muted)]">
-            {formatINR(expense)} of sell
+            {formatINR(expense)} of cost
           </dd>
         </div>
         <div className="rounded-xl bg-[var(--accent-soft)] p-3">

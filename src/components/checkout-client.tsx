@@ -8,8 +8,10 @@ import { createOrder } from "@/app/actions/orders";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ProfitSheet } from "@/components/profit-sheet";
 import { useCart } from "@/components/cart-provider";
-import { formatINR, roundMoney } from "@/lib/money";
+import { CartTotalsSummary } from "@/components/cart-totals-summary";
+import { formatINR, netSellPrice, roundMoney } from "@/lib/money";
 import type { UpiAccount } from "@/lib/upi";
+import { useRouter } from "next/navigation";
 
 type CheckoutClientProps = {
   upiAccounts: UpiAccount[];
@@ -25,6 +27,7 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
   const [done, setDone] = useState<{
     orderId: string;
     method: "upi" | "cash";
@@ -168,6 +171,9 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
         <ul className="divide-y divide-[var(--line)]">
           {items.map((item) => {
             const left = Math.max(0, item.stock - item.qty);
+            const discPct = Number(item.discountPercent) || 0;
+            const unitNet = netSellPrice(item.sellPrice, discPct);
+            const lineTotal = roundMoney(unitNet * item.qty);
             return (
               <li key={item.productId} className="py-3">
                 <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
@@ -176,8 +182,22 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
                       {item.name}
                     </p>
                     <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-                      {formatINR(item.sellPrice)} × {item.qty}
-                      {" · "}
+                      {discPct > 0 ? (
+                        <>
+                          <span className="line-through opacity-70">
+                            {formatINR(item.sellPrice)}
+                          </span>{" "}
+                          {formatINR(unitNet)} × {item.qty}
+                          {" · "}
+                          {discPct}% off
+                          {" · "}
+                        </>
+                      ) : (
+                        <>
+                          {formatINR(item.sellPrice)} × {item.qty}
+                          {" · "}
+                        </>
+                      )}
                       <span
                         className={
                           left <= 0 ? "font-medium text-red-700" : "font-medium"
@@ -211,7 +231,7 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
                       </button>
                     </div>
                     <p className="min-w-[4.75rem] shrink-0 text-right font-semibold tabular-nums">
-                      {formatINR(item.sellPrice * item.qty)}
+                      {formatINR(lineTotal)}
                     </p>
                   </div>
                 </div>
@@ -220,20 +240,9 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
           })}
         </ul>
 
-        <dl className="mt-4 space-y-2 text-sm">
-          <div className="flex justify-between gap-3">
-            <dt className="text-[var(--ink-muted)]">Subtotal</dt>
-            <dd className="tabular-nums">{formatINR(totals.subtotal)}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-[var(--ink-muted)]">Discount</dt>
-            <dd className="tabular-nums">−{formatINR(totals.discountTotal)}</dd>
-          </div>
-          <div className="flex justify-between gap-3 text-base font-semibold">
-            <dt>Total</dt>
-            <dd className="tabular-nums">{formatINR(totals.payable)}</dd>
-          </div>
-        </dl>
+        <div className="mt-4">
+          <CartTotalsSummary totals={totals} showListSubtotal />
+        </div>
       </section>
 
       <section className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 sm:p-5">
@@ -399,6 +408,8 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
         onConfirm={() => {
           clearCart();
           setConfirmClear(false);
+          // navi to home
+          router.push("/");
         }}
       />
     </div>

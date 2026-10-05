@@ -9,8 +9,40 @@ import { QtyDialog } from "@/components/qty-dialog";
 import { QrScanner } from "@/components/qr-scanner";
 import { Sheet } from "@/components/sheet";
 import { useCart } from "@/components/cart-provider";
-import { formatINR } from "@/lib/money";
+import { CartTotalsSummary } from "@/components/cart-totals-summary";
+import { formatINR, netSellPrice, roundMoney } from "@/lib/money";
 import type { Product } from "@/lib/types";
+
+function SalePrice({
+  listPrice,
+  discountPercent,
+}: {
+  listPrice: number;
+  discountPercent: number;
+}) {
+  const disc = Number(discountPercent) || 0;
+  const net = netSellPrice(listPrice, disc);
+  if (disc <= 0) {
+    return (
+      <span className="shrink-0 text-base font-semibold tabular-nums">
+        {formatINR(listPrice)}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex shrink-0 flex-col items-end gap-0.5 text-right">
+      <span className="text-sm tabular-nums text-[var(--ink-muted)] line-through">
+        {formatINR(listPrice)}
+      </span>
+      <span className="text-base font-semibold tabular-nums text-[var(--accent-ink)]">
+        {formatINR(net)}
+      </span>
+      <span className="rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-ink)]">
+        {disc}% off
+      </span>
+    </span>
+  );
+}
 
 export function ProductGrid({ products }: { products: Product[] }) {
   const router = useRouter();
@@ -98,10 +130,17 @@ export function ProductGrid({ products }: { products: Product[] }) {
     );
   }
 
+  const cartHasProductDiscount = totals.productDiscountTotal > 0;
+
   const cartLines = (
     <ul className="space-y-2 text-sm">
       {items.map((item) => {
         const left = Math.max(0, item.stock - item.qty);
+        const discPct = Number(item.discountPercent) || 0;
+        const unitNet = netSellPrice(item.sellPrice, discPct);
+        const lineTotal = roundMoney(unitNet * item.qty);
+        const lineListTotal = roundMoney(item.sellPrice * item.qty);
+        const onSale = discPct > 0;
         return (
           <li
             key={item.productId}
@@ -111,7 +150,24 @@ export function ProductGrid({ products }: { products: Product[] }) {
               <div className="min-w-0 flex-1">
                 <p className="break-words font-medium leading-snug">{item.name}</p>
                 <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-                  {formatINR(item.sellPrice)} each ·{" "}
+                  {onSale ? (
+                    <>
+                      <span className="line-through opacity-70">
+                        {formatINR(item.sellPrice)}
+                      </span>{" "}
+                      <span className="font-semibold text-[var(--accent-ink)]">
+                        {formatINR(unitNet)}
+                      </span>{" "}
+                      each
+                      {" · "}
+                      <span className="rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-ink)]">
+                        {discPct}% off
+                      </span>
+                      {" · "}
+                    </>
+                  ) : (
+                    <>{formatINR(item.sellPrice)} each · </>
+                  )}
                   <span
                     className={
                       left <= 0 ? "font-medium text-red-700" : "font-medium"
@@ -153,9 +209,22 @@ export function ProductGrid({ products }: { products: Product[] }) {
                   +
                 </button>
               </div>
-              <span className="text-base font-semibold tabular-nums">
-                {formatINR(item.qty * item.sellPrice)}
-              </span>
+              <div className="text-right">
+                {onSale ? (
+                  <>
+                    <span className="block text-xs tabular-nums text-[var(--ink-muted)] line-through">
+                      {formatINR(lineListTotal)}
+                    </span>
+                    <span className="block text-base font-semibold tabular-nums text-[var(--accent-ink)]">
+                      {formatINR(lineTotal)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-base font-semibold tabular-nums">
+                    {formatINR(lineTotal)}
+                  </span>
+                )}
+              </div>
             </div>
           </li>
         );
@@ -211,10 +280,25 @@ export function ProductGrid({ products }: { products: Product[] }) {
         ) : (
           <p className="mb-3 text-sm text-[var(--ink-muted)]">Cart is empty.</p>
         )}
-        <p className="mb-1 text-2xl font-semibold">{formatINR(totals.payable)}</p>
-        <p className="mb-4 text-xs text-[var(--ink-muted)]">
-          Est. profit {formatINR(totals.profit)}
+        {cartHasProductDiscount ? (
+          <p className="mb-0.5 text-sm tabular-nums text-[var(--ink-muted)] line-through">
+            {formatINR(totals.listSubtotal)}
+          </p>
+        ) : null}
+        <p
+          className={`text-2xl tabular-nums ${
+            cartHasProductDiscount
+              ? "mb-1 font-bold text-[var(--accent-ink)]"
+              : "mb-4 font-semibold"
+          }`}
+        >
+          {formatINR(totals.payable)}
         </p>
+        {cartHasProductDiscount ? (
+          <p className="mb-4 text-xs font-semibold text-[var(--accent-ink)]">
+            {formatINR(totals.productDiscountTotal)} off from product discounts
+          </p>
+        ) : null}
         <Link
           href="/checkout"
           prefetch
@@ -272,9 +356,10 @@ export function ProductGrid({ products }: { products: Product[] }) {
                       </span>
                     ) : null}
                   </h2>
-                  <p className="shrink-0 text-base font-semibold">
-                    {formatINR(Number(product.sell_price))}
-                  </p>
+                  <SalePrice
+                    listPrice={Number(product.sell_price)}
+                    discountPercent={Number(product.discount_percent) || 0}
+                  />
                 </div>
                 <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
                   {product.sku}
@@ -390,16 +475,9 @@ export function ProductGrid({ products }: { products: Product[] }) {
         {items.length > 0 ? (
           <>
             {cartLines}
-            <dl className="mt-4 space-y-1.5 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-[var(--ink-muted)]">Est. profit</dt>
-                <dd className="tabular-nums">{formatINR(totals.profit)}</dd>
-              </div>
-              <div className="flex justify-between gap-3 text-base font-semibold">
-                <dt>Total</dt>
-                <dd className="tabular-nums">{formatINR(totals.payable)}</dd>
-              </div>
-            </dl>
+            <div className="mt-4">
+              <CartTotalsSummary totals={totals} showListSubtotal />
+            </div>
           </>
         ) : (
           <p className="py-8 text-center text-sm text-[var(--ink-muted)]">

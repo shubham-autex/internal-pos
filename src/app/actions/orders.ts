@@ -16,6 +16,7 @@ const orderSchema = z.object({
         sellPrice: z.number(),
         costPrice: z.number(),
         expensePercent: z.number().min(0).max(100).optional().default(0),
+        discountPercent: z.number().min(0).max(100).optional().default(0),
         qty: z.number().int().positive(),
         stock: z.number().int().nonnegative().optional(),
       }),
@@ -64,6 +65,7 @@ export async function createOrder(
     items.map((item) => ({
       ...item,
       expensePercent: item.expensePercent ?? 0,
+      discountPercent: item.discountPercent ?? 0,
       stock: item.stock ?? 0,
     })),
     discountAmount,
