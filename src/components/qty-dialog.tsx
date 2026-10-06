@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { Sheet } from "@/components/sheet";
-import { formatINR } from "@/lib/money";
+import {
+  floorPercent,
+  formatINR,
+  netSellPrice,
+  roundMoney,
+} from "@/lib/money";
 import type { Product } from "@/lib/types";
 
 type QtyDialogProps = {
@@ -21,8 +26,11 @@ export function QtyDialog({
 }: QtyDialogProps) {
   const limit = Math.max(0, Math.floor(maxQty));
   const [qty, setQty] = useState(limit > 0 ? 1 : 0);
-  const unit = Number(product.sell_price);
-  const lineTotal = unit * qty;
+  const listPrice = Number(product.sell_price);
+  const discountPct = floorPercent(product.discount_percent);
+  const unit = netSellPrice(listPrice, discountPct);
+  const lineListTotal = roundMoney(listPrice * qty);
+  const lineTotal = roundMoney(unit * qty);
   const outOfStock = limit <= 0;
 
   function bump(delta: number) {
@@ -39,8 +47,24 @@ export function QtyDialog({
   return (
     <Sheet open onClose={onCancel} title="How many?" size="sm">
       <p className="text-base font-semibold leading-snug">{product.name}</p>
-      <p className="mt-1 text-sm text-[var(--ink-muted)]">
-        {product.sku} · {formatINR(unit)} each
+      <p className="mt-1 flex flex-wrap items-baseline gap-1.5 text-sm text-[var(--ink-muted)]">
+        <span>{product.sku} ·</span>
+        {discountPct > 0 ? (
+          <>
+            <span className="font-semibold tabular-nums text-[var(--accent-ink)]">
+              {formatINR(unit)}
+            </span>
+            <span className="tabular-nums line-through">
+              {formatINR(listPrice)}
+            </span>
+            <span className="rounded bg-[var(--accent-soft)] px-1 py-px text-[11px] font-semibold text-[var(--accent-ink)]">
+              {discountPct}%
+            </span>
+            <span>each</span>
+          </>
+        ) : (
+          <span>{formatINR(unit)} each</span>
+        )}
       </p>
       <p
         className={`mt-2 text-sm font-medium ${
@@ -124,11 +148,16 @@ export function QtyDialog({
             </div>
           ) : null}
 
-          <p className="mt-4 text-center text-sm text-[var(--ink-muted)]">
-            Amount{" "}
-            <span className="text-lg font-semibold text-[var(--ink)]">
+          <p className="mt-4 flex flex-wrap items-baseline justify-center gap-2 text-sm text-[var(--ink-muted)]">
+            <span>Amount</span>
+            <span className="text-lg font-semibold tabular-nums text-[var(--ink)]">
               {formatINR(lineTotal)}
             </span>
+            {discountPct > 0 ? (
+              <span className="tabular-nums line-through">
+                {formatINR(lineListTotal)}
+              </span>
+            ) : null}
           </p>
 
           <div className="mt-4 grid grid-cols-2 gap-2">

@@ -7,6 +7,7 @@ import {
   floorPercent,
   formatINR,
   marginPercent,
+  netSellPrice,
   unitProfit,
 } from "@/lib/money";
 import type { Product } from "@/lib/types";
@@ -21,6 +22,7 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
   const cost = Number(product.cost_price);
   const expensePct = Number(product.expense_percent) || 0;
   const discountPct = floorPercent(product.discount_percent);
+  const net = netSellPrice(sell, discountPct);
   const expense = expenseAmount(cost, expensePct);
   const profit = unitProfit(sell, cost, expensePct, discountPct);
   const margin = marginPercent(sell, cost, expensePct, discountPct);
@@ -41,7 +43,20 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
       <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-xl bg-[var(--surface-muted)] p-3">
           <dt className="text-[var(--ink-muted)]">Sell</dt>
-          <dd className="text-xl font-semibold">{formatINR(sell)}</dd>
+          {discountPct > 0 ? (
+            <dd className="flex flex-wrap items-baseline gap-2">
+              <span className="text-xl font-bold tabular-nums text-[var(--accent-ink)]">
+                {formatINR(net)}
+              </span>
+              <span className="text-sm tabular-nums text-[var(--ink-muted)] line-through">
+                {formatINR(sell)}
+              </span>
+            </dd>
+          ) : (
+            <dd className="text-xl font-semibold tabular-nums">
+              {formatINR(sell)}
+            </dd>
+          )}
         </div>
         <div className="rounded-xl bg-[var(--surface-muted)] p-3">
           <dt className="text-[var(--ink-muted)]">
