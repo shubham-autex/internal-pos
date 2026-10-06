@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { deleteProduct } from "@/app/actions/products";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { formatINR, marginPercent } from "@/lib/money";
+import { formatINR, floorPercent, marginPercent } from "@/lib/money";
 import type { Product } from "@/lib/types";
 
 export function ProductList({ products }: { products: Product[] }) {
@@ -65,7 +65,7 @@ export function ProductList({ products }: { products: Product[] }) {
                   Number(product.expense_percent) || 0,
                   Number(product.discount_percent) || 0,
                 );
-                const disc = Number(product.discount_percent) || 0;
+                const disc = floorPercent(product.discount_percent);
                 return (
                   <tr
                     key={product.id}

@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ProfitSheet } from "@/components/profit-sheet";
 import { useCart } from "@/components/cart-provider";
 import { CartTotalsSummary } from "@/components/cart-totals-summary";
-import { formatINR, netSellPrice, roundMoney } from "@/lib/money";
+import { formatINR, floorPercent, netSellPrice, roundMoney } from "@/lib/money";
 import type { UpiAccount } from "@/lib/upi";
 import { useRouter } from "next/navigation";
 
@@ -171,7 +171,7 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
         <ul className="divide-y divide-[var(--line)]">
           {items.map((item) => {
             const left = Math.max(0, item.stock - item.qty);
-            const discPct = Number(item.discountPercent) || 0;
+            const discPct = floorPercent(item.discountPercent);
             const unitNet = netSellPrice(item.sellPrice, discPct);
             const lineTotal = roundMoney(unitNet * item.qty);
             return (

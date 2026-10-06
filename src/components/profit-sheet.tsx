@@ -42,11 +42,11 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
     event.preventDefault();
     setDiscounts(draftAmount, draftPercent);
     setJustApplied(true);
-    window.setTimeout(() => setJustApplied(false), 1800);
+    window.setTimeout(() => setJustApplied(false), 1000);
     // delay closing the sheet to allow the user to see the applied discount
     window.setTimeout(() => {
       onClose();
-    }, 1000);
+    }, 500);
   }
 
   return (

@@ -10,7 +10,7 @@ import { QrScanner } from "@/components/qr-scanner";
 import { Sheet } from "@/components/sheet";
 import { useCart } from "@/components/cart-provider";
 import { CartTotalsSummary } from "@/components/cart-totals-summary";
-import { formatINR, netSellPrice, roundMoney } from "@/lib/money";
+import { formatINR, floorPercent, netSellPrice, roundMoney } from "@/lib/money";
 import type { Product } from "@/lib/types";
 
 function SalePrice({
@@ -20,7 +20,7 @@ function SalePrice({
   listPrice: number;
   discountPercent: number;
 }) {
-  const disc = Number(discountPercent) || 0;
+  const disc = floorPercent(discountPercent);
   const net = netSellPrice(listPrice, disc);
   if (disc <= 0) {
     return (
@@ -136,7 +136,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
     <ul className="space-y-2 text-sm">
       {items.map((item) => {
         const left = Math.max(0, item.stock - item.qty);
-        const discPct = Number(item.discountPercent) || 0;
+        const discPct = floorPercent(item.discountPercent);
         const unitNet = netSellPrice(item.sellPrice, discPct);
         const lineTotal = roundMoney(unitNet * item.qty);
         const lineListTotal = roundMoney(item.sellPrice * item.qty);

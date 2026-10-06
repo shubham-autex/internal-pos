@@ -16,15 +16,31 @@ export function clampPercent(percent: number) {
   return Math.min(Math.max(Number(percent) || 0, 0), 100);
 }
 
-/** ₹ for a percent of a base amount (cost for expense, sell for discount). */
+/** Product discount % is always floored (e.g. 67.6 → 67) for display and math. */
+export function floorPercent(percent: number) {
+  return Math.floor(clampPercent(percent));
+}
+
+/** ₹ for a percent of a base amount (cost for expense). */
 export function expenseAmount(baseAmount: number, percent: number) {
   return roundMoney(((Number(baseAmount) || 0) * clampPercent(percent)) / 100);
+}
+
+/**
+ * ₹ off list sell from product discount %:
+ * floor the %, then ceil the rupee amount (e.g. ceil(price × 67 / 100)).
+ */
+export function productDiscountAmount(sellPrice: number, discountPercent = 0) {
+  const sell = Number(sellPrice) || 0;
+  const pct = floorPercent(discountPercent);
+  if (sell <= 0 || pct <= 0) return 0;
+  return Math.ceil((sell * pct) / 100);
 }
 
 /** Sell after product-level discount % (never below 0). */
 export function netSellPrice(sellPrice: number, discountPercent = 0) {
   const sell = Number(sellPrice) || 0;
-  return roundMoney(Math.max(0, sell - expenseAmount(sell, discountPercent)));
+  return roundMoney(Math.max(0, sell - productDiscountAmount(sell, discountPercent)));
 }
 
 export function unitProfit(

@@ -2,6 +2,7 @@ import type { CartItem } from "@/lib/types";
 import {
   clampPercent,
   expenseAmount,
+  floorPercent,
   netSellPrice,
   roundMoney,
   unitProfit,
@@ -49,10 +50,11 @@ export function computeCartTotals(
 ): CartTotals {
   const lines = items.map((item) => {
     const expensePercent = clampPercent(item.expensePercent ?? 0);
-    const discountPercent = clampPercent(item.discountPercent ?? 0);
+    const discountPercent = floorPercent(item.discountPercent ?? 0);
     const unitNetPrice = netSellPrice(item.sellPrice, discountPercent);
     const lineListTotal = roundMoney(item.sellPrice * item.qty);
     const lineTotal = roundMoney(unitNetPrice * item.qty);
+    // Per-unit ceil already applied in productDiscountAmount; scale by qty.
     const lineProductDiscount = roundMoney(lineListTotal - lineTotal);
     const lineCost = roundMoney(item.costPrice * item.qty);
     const lineExpense = roundMoney(

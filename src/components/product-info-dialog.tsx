@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Sheet } from "@/components/sheet";
 import {
   expenseAmount,
+  floorPercent,
   formatINR,
   marginPercent,
   unitProfit,
@@ -19,7 +20,7 @@ export function ProductInfoDialog({ product, onClose }: ProductInfoDialogProps) 
   const sell = Number(product.sell_price);
   const cost = Number(product.cost_price);
   const expensePct = Number(product.expense_percent) || 0;
-  const discountPct = Number(product.discount_percent) || 0;
+  const discountPct = floorPercent(product.discount_percent);
   const expense = expenseAmount(cost, expensePct);
   const profit = unitProfit(sell, cost, expensePct, discountPct);
   const margin = marginPercent(sell, cost, expensePct, discountPct);
