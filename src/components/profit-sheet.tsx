@@ -92,6 +92,10 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
             <CartTotalsSummary totals={preview} showListSubtotal />
             <dl className="mt-3 space-y-1.5 border-t border-[var(--line)] pt-3">
               <div className="flex justify-between">
+                <dt className="text-[var(--ink-muted)]">Cost</dt>
+                <dd>−{formatINR(preview.costTotal)}</dd>
+              </div>
+              <div className="flex justify-between">
                 <dt className="text-[var(--ink-muted)]">Expense</dt>
                 <dd>−{formatINR(preview.expenseTotal)}</dd>
               </div>
@@ -183,6 +187,10 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
             <CartTotalsSummary totals={totals} showListSubtotal />
           </div>
           <dl className="mt-3 space-y-1.5 border-t border-[var(--line)] pt-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-[var(--ink-muted)]">Cost</dt>
+              <dd>−{formatINR(totals.costTotal)}</dd>
+            </div>
             <div className="flex justify-between">
               <dt className="text-[var(--ink-muted)]">Expense</dt>
               <dd>−{formatINR(totals.expenseTotal)}</dd>
