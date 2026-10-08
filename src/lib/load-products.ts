@@ -28,7 +28,7 @@ export async function loadActiveProducts(
     ascending?: boolean;
   },
 ): Promise<{ products: Product[]; error: string | null }> {
-  const orderBy = options?.orderBy ?? "name";
+  const orderBy = options?.orderBy ?? "sku";
   const ascending = options?.ascending ?? true;
 
   const { data, error } = await supabase
