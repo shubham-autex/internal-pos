@@ -11,6 +11,7 @@ import { Sheet } from "@/components/sheet";
 import { useCart } from "@/components/cart-provider";
 import { CartTotalsSummary } from "@/components/cart-totals-summary";
 import { formatINR, floorPercent, netSellPrice, roundMoney } from "@/lib/money";
+import { stockExceededMessage } from "@/lib/stock";
 import type { Product } from "@/lib/types";
 
 function SalePrice({
@@ -120,14 +121,10 @@ export function ProductGrid({ products }: { products: Product[] }) {
     setPending(null);
     const result = addProduct(product, qty);
     if (!result.ok) {
-      flash(`${product.name} is out of stock`);
+      flash(stockExceededMessage(product.name, result.available));
       return;
     }
-    flash(
-      result.limited
-        ? `Only ${result.added} left — added ${result.added}× ${product.name}`
-        : `Added ${result.added}× ${product.name}`,
-    );
+    flash(`Added ${result.added}× ${product.name}`);
   }
 
   const cartHasProductDiscount = totals.productDiscountTotal > 0;
@@ -173,7 +170,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
                       left <= 0 ? "font-medium text-red-700" : "font-medium"
                     }
                   >
-                    {left <= 0 ? "none left" : `${left} left`}
+                    Remaining stock: {left}
                   </span>
                 </p>
               </div>
@@ -201,9 +198,14 @@ export function ProductGrid({ products }: { products: Product[] }) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setQty(item.productId, item.qty + 1)}
-                  disabled={item.qty >= item.stock}
-                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold disabled:opacity-40"
+                  onClick={() => {
+                    if (item.qty >= item.stock) {
+                      flash(stockExceededMessage(item.name, item.stock));
+                      return;
+                    }
+                    setQty(item.productId, item.qty + 1);
+                  }}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold"
                   aria-label={`Increase ${item.name}`}
                 >
                   +

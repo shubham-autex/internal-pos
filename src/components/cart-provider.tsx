@@ -21,8 +21,8 @@ type CartState = {
 };
 
 type AddProductResult =
-  | { ok: true; added: number; limited?: boolean }
-  | { ok: false; reason: "out_of_stock"; available: 0 };
+  | { ok: true; added: number }
+  | { ok: false; reason: "insufficient_stock"; available: number };
 
 type CartContextValue = CartState & {
   totals: CartTotals;
@@ -127,25 +127,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addProduct = useCallback((product: Product, qty = 1): AddProductResult => {
     const stock = Math.max(0, Math.floor(Number(product.stock) || 0));
     const want = Math.max(1, Math.floor(qty));
-    let result: AddProductResult = { ok: false, reason: "out_of_stock", available: 0 };
+    let result: AddProductResult = {
+      ok: false,
+      reason: "insufficient_stock",
+      available: 0,
+    };
 
     setState((prev) => {
       const existing = prev.items.find((item) => item.productId === product.id);
       const inCart = existing?.qty ?? 0;
       const room = Math.max(0, stock - inCart);
 
-      if (stock <= 0 || room <= 0) {
-        result = { ok: false, reason: "out_of_stock", available: 0 };
+      if (stock <= 0 || room <= 0 || want > room) {
+        result = { ok: false, reason: "insufficient_stock", available: room };
         return prev;
       }
 
-      const added = Math.min(want, room);
-      if (added <= 0) {
-        result = { ok: false, reason: "out_of_stock", available: 0 };
-        return prev;
-      }
-
-      result = { ok: true, added, limited: added < want };
+      const added = want;
+      result = { ok: true, added };
 
       if (existing) {
         return {
@@ -188,7 +187,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
 
       const max = Math.max(0, Math.floor(Number(existing.stock) || 0));
-      const nextQty = max > 0 ? Math.min(Math.floor(qty), max) : Math.floor(qty);
+      if (Math.floor(qty) > max) return prev;
+      const nextQty = Math.floor(qty);
       if (nextQty <= 0) {
         return {
           ...prev,

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { computeCartTotals } from "@/lib/cart-math";
 import { roundMoney } from "@/lib/money";
+import { stockExceededMessage } from "@/lib/stock";
 import { createClient } from "@/lib/supabase/server";
 
 const orderSchema = z.object({
@@ -213,10 +214,7 @@ export async function createOrder(
     if (product.stock < need.qty) {
       return {
         ok: false,
-        error:
-          product.stock <= 0
-            ? `${product.name} is out of stock`
-            : `Only ${product.stock} left of ${product.name}`,
+        error: stockExceededMessage(product.name, product.stock),
       };
     }
   }
@@ -232,6 +230,55 @@ export async function createOrder(
 
   if (paymentMethod === "upi" && !upiId) {
     return { ok: false, error: "Select a UPI account before marking paid" };
+  }
+
+  const supabaseClient = supabase;
+  const applied: Array<{ id: string; previous: number; next: number }> = [];
+
+  async function restoreStock() {
+    for (const row of [...applied].reverse()) {
+      await supabaseClient
+        .from("products")
+        .update({ stock: row.previous })
+        .eq("id", row.id)
+        .eq("stock", row.next);
+    }
+  }
+
+  for (const [productId, need] of deductById) {
+    const product = productById.get(productId);
+    if (!product) {
+      await restoreStock();
+      return { ok: false, error: `${need.name} is no longer available` };
+    }
+    const nextStock = product.stock - need.qty;
+    if (nextStock < 0) {
+      await restoreStock();
+      return {
+        ok: false,
+        error: stockExceededMessage(product.name, product.stock),
+      };
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from("products")
+      .update({ stock: nextStock })
+      .eq("id", productId)
+      .eq("stock", product.stock)
+      .gte("stock", need.qty)
+      .select("stock");
+
+    const written = Number(updated?.[0]?.stock);
+    if (updateError || !updated?.length || !Number.isFinite(written) || written < 0) {
+      await restoreStock();
+      return {
+        ok: false,
+        error: updateError?.message ?? stockExceededMessage(product.name, product.stock),
+      };
+    }
+
+    applied.push({ id: productId, previous: product.stock, next: nextStock });
+    productById.set(productId, { ...product, stock: nextStock });
   }
 
   const { data: order, error: orderError } = await supabase
@@ -256,6 +303,7 @@ export async function createOrder(
     .single();
 
   if (orderError || !order) {
+    await restoreStock();
     return { ok: false, error: orderError?.message ?? "Failed to create order" };
   }
 
@@ -275,27 +323,9 @@ export async function createOrder(
   );
 
   if (itemsError) {
+    await supabase.from("orders").delete().eq("id", order.id);
+    await restoreStock();
     return { ok: false, error: itemsError.message };
-  }
-
-  for (const [productId, need] of deductById) {
-    const product = productById.get(productId);
-    if (!product) continue;
-    const nextStock = product.stock - need.qty;
-    if (nextStock < 0) {
-      return { ok: false, error: `Not enough stock for ${product.name}` };
-    }
-    const { error: updateError } = await supabase
-      .from("products")
-      .update({ stock: nextStock })
-      .eq("id", productId)
-      .gte("stock", need.qty);
-
-    if (updateError) {
-      return { ok: false, error: updateError.message };
-    }
-
-    productById.set(productId, { ...product, stock: nextStock });
   }
 
   revalidatePath("/");

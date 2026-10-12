@@ -10,6 +10,7 @@ import { ProfitSheet } from "@/components/profit-sheet";
 import { useCart } from "@/components/cart-provider";
 import { CartTotalsSummary } from "@/components/cart-totals-summary";
 import { formatINR, floorPercent, netSellPrice, roundMoney } from "@/lib/money";
+import { stockExceededMessage } from "@/lib/stock";
 import type { UpiAccount } from "@/lib/upi";
 import { useRouter } from "next/navigation";
 
@@ -66,6 +67,11 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
   }, [upiUrl, totals.payable, selectedUpi]);
 
   async function complete(method: "upi" | "cash") {
+    const over = items.find((item) => item.qty > item.stock);
+    if (over) {
+      setError(stockExceededMessage(over.name, over.stock));
+      return;
+    }
     setBusy(true);
     setError(null);
     const result = await createOrder({
@@ -168,6 +174,15 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
           </div>
         </div>
 
+        {error ? (
+          <p
+            className="mb-3 rounded-xl bg-red-50 px-3 py-3 text-sm text-red-800"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
+
         <ul className="divide-y divide-[var(--line)]">
           {items.map((item) => {
             const left = Math.max(0, item.stock - item.qty);
@@ -203,7 +218,7 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
                           left <= 0 ? "font-medium text-red-700" : "font-medium"
                         }
                       >
-                        {left <= 0 ? "none left" : `${left} left`}
+                        Remaining stock: {left}
                       </span>
                     </p>
                   </div>
@@ -222,9 +237,15 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
                       </span>
                       <button
                         type="button"
-                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] disabled:opacity-40 sm:h-9 sm:w-9"
-                        disabled={item.qty >= item.stock}
-                        onClick={() => setQty(item.productId, item.qty + 1)}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] sm:h-9 sm:w-9"
+                        onClick={() => {
+                          if (item.qty >= item.stock) {
+                            setError(stockExceededMessage(item.name, item.stock));
+                            return;
+                          }
+                          setError(null);
+                          setQty(item.productId, item.qty + 1);
+                        }}
                         aria-label={`Increase ${item.name}`}
                       >
                         +

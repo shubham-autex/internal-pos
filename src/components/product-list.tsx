@@ -83,6 +83,24 @@ export function ProductList({ products }: { products: Product[] }) {
                           Combo
                         </span>
                       ) : null}
+                      <div className="mt-2 flex gap-2 sm:hidden">
+                        <Link
+                          href={`/products/${product.id}`}
+                          className="rounded-lg border border-[var(--line)] px-2.5 py-1 text-xs font-semibold"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError(null);
+                            setPendingDelete(product);
+                          }}
+                          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                     <td className="px-3 py-3 font-mono text-xs text-[var(--ink-muted)] sm:px-4 sm:text-sm">
                       {product.sku}
