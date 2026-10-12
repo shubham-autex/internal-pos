@@ -60,6 +60,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
   } = useCart();
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [stockNotice, setStockNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<Product | null>(null);
   const [infoProduct, setInfoProduct] = useState<Product | null>(null);
   const [cartExpanded, setCartExpanded] = useState(false);
@@ -200,9 +201,12 @@ export function ProductGrid({ products }: { products: Product[] }) {
                   type="button"
                   onClick={() => {
                     if (item.qty >= item.stock) {
-                      flash(stockExceededMessage(item.name, item.stock));
+                      const message = stockExceededMessage(item.name, item.stock);
+                      setStockNotice(message);
+                      flash(message);
                       return;
                     }
+                    setStockNotice(null);
                     setQty(item.productId, item.qty + 1);
                   }}
                   className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold"
@@ -482,6 +486,14 @@ export function ProductGrid({ products }: { products: Product[] }) {
       >
         {items.length > 0 ? (
           <>
+            {stockNotice ? (
+              <p
+                className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-800"
+                role="alert"
+              >
+                {stockNotice}
+              </p>
+            ) : null}
             {cartLines}
             <div className="mt-4">
               <CartTotalsSummary totals={totals} showListSubtotal />
