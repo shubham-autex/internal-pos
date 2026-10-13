@@ -4,9 +4,11 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createProduct,
+  deleteProduct,
   updateProduct,
   type ProductActionState,
 } from "@/app/actions/products";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { QrScanner } from "@/components/qr-scanner";
 import { ComboItemPicker } from "@/components/combo-item-picker";
 import { deriveComboCosting, comboAvailableStock } from "@/lib/combo";
@@ -63,6 +65,9 @@ export function ProductForm({
   const [sellTouched, setSellTouched] = useState(
     Boolean(product && Number(product.sell_price) > 0),
   );
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [components, setComponents] = useState<ComponentDraft[]>(() =>
     (product?.components ?? []).map((component) => ({
       component_id: component.component_id,
@@ -531,12 +536,61 @@ export function ProductForm({
         </button>
       </form>
 
+      {product ? (
+        <div className="space-y-2">
+          {deleteError ? (
+            <p className="text-sm text-red-700" role="alert">
+              {deleteError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError(null);
+              setConfirmDelete(true);
+            }}
+            className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50"
+          >
+            Delete product
+          </button>
+        </div>
+      ) : null}
+
       <QrScanner
         open={scanOpen}
         onClose={() => setScanOpen(false)}
         onScan={(value) => setSku(value)}
         title="Scan SKU / barcode"
         variant="modal"
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete product?"
+        message={
+          product
+            ? `“${product.name}” will be removed from sell and product lists.`
+            : ""
+        }
+        confirmLabel={deleting ? "Deleting…" : "Delete"}
+        danger
+        onCancel={() => {
+          if (!deleting) setConfirmDelete(false);
+        }}
+        onConfirm={() => {
+          if (!product || deleting) return;
+          setDeleting(true);
+          void deleteProduct(product.id).then((result) => {
+            setDeleting(false);
+            if (result.error) {
+              setDeleteError(result.error);
+              setConfirmDelete(false);
+              return;
+            }
+            router.push("/products");
+            router.refresh();
+          });
+        }}
       />
     </>
   );

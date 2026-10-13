@@ -13,7 +13,7 @@ create table if not exists public.products (
   sell_price numeric(12, 2) not null check (sell_price >= 0),
   discount_percent numeric(5, 2) not null default 0 check (discount_percent >= 0 and discount_percent <= 100),
   expense_percent numeric(5, 2) not null default 0 check (expense_percent >= 0 and expense_percent <= 100),
-  stock integer not null default 0,
+  stock integer not null default 0 check (stock >= 0),
   tags text[] not null default '{}',
   active boolean not null default true,
   created_at timestamptz not null default now()
@@ -121,6 +121,11 @@ create policy "Authenticated staff can insert orders"
   on public.orders for insert
   to authenticated
   with check (auth.uid() = staff_id);
+
+create policy "Authenticated staff can delete own orders"
+  on public.orders for delete
+  to authenticated
+  using (auth.uid() = staff_id);
 
 create policy "Authenticated staff can read order items"
   on public.order_items for select

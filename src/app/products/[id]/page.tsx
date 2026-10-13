@@ -43,10 +43,9 @@ export default async function EditProductPage({
           <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold">
             Edit {isCombo ? "combo" : "product"}
           </h1>
-          <p className="text-sm text-[var(--ink-muted)]">
-            {isCombo
-              ? `Buildable from components: ${product.stock}.`
-              : `Stock left: ${product.stock}.`}
+          <p className="text-sm font-medium text-[var(--ink)]">
+            Remaining stock: {product.stock}
+            {isCombo ? " buildable" : ""}
           </p>
         </div>
         <ProductForm product={product} simpleProducts={simpleProducts} />

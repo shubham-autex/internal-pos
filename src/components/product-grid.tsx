@@ -11,6 +11,7 @@ import { Sheet } from "@/components/sheet";
 import { useCart } from "@/components/cart-provider";
 import { CartTotalsSummary } from "@/components/cart-totals-summary";
 import { formatINR, floorPercent, netSellPrice, roundMoney } from "@/lib/money";
+import { stockExceededMessage } from "@/lib/stock";
 import type { Product } from "@/lib/types";
 
 function SalePrice({
@@ -59,6 +60,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
   } = useCart();
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [stockNotice, setStockNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<Product | null>(null);
   const [infoProduct, setInfoProduct] = useState<Product | null>(null);
   const [cartExpanded, setCartExpanded] = useState(false);
@@ -120,14 +122,10 @@ export function ProductGrid({ products }: { products: Product[] }) {
     setPending(null);
     const result = addProduct(product, qty);
     if (!result.ok) {
-      flash(`${product.name} is out of stock`);
+      flash(stockExceededMessage(product.name, result.available));
       return;
     }
-    flash(
-      result.limited
-        ? `Only ${result.added} left — added ${result.added}× ${product.name}`
-        : `Added ${result.added}× ${product.name}`,
-    );
+    flash(`Added ${result.added}× ${product.name}`);
   }
 
   const cartHasProductDiscount = totals.productDiscountTotal > 0;
@@ -173,7 +171,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
                       left <= 0 ? "font-medium text-red-700" : "font-medium"
                     }
                   >
-                    {left <= 0 ? "none left" : `${left} left`}
+                    Remaining stock: {left}
                   </span>
                 </p>
               </div>
@@ -201,9 +199,17 @@ export function ProductGrid({ products }: { products: Product[] }) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setQty(item.productId, item.qty + 1)}
-                  disabled={item.qty >= item.stock}
-                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold disabled:opacity-40"
+                  onClick={() => {
+                    if (item.qty >= item.stock) {
+                      const message = stockExceededMessage(item.name, item.stock);
+                      setStockNotice(message);
+                      flash(message);
+                      return;
+                    }
+                    setStockNotice(null);
+                    setQty(item.productId, item.qty + 1);
+                  }}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--surface)] text-xl font-semibold"
                   aria-label={`Increase ${item.name}`}
                 >
                   +
@@ -480,6 +486,14 @@ export function ProductGrid({ products }: { products: Product[] }) {
       >
         {items.length > 0 ? (
           <>
+            {stockNotice ? (
+              <p
+                className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-800"
+                role="alert"
+              >
+                {stockNotice}
+              </p>
+            ) : null}
             {cartLines}
             <div className="mt-4">
               <CartTotalsSummary totals={totals} showListSubtotal />
