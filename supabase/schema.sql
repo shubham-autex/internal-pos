@@ -46,6 +46,8 @@ create table if not exists public.orders (
   -- Snapshot of the UPI QR shown when marked paid (null for cash).
   upi_id text,
   upi_name text,
+  -- Optional customer mobile captured at checkout.
+  customer_mobile text,
   status text not null default 'paid',
   created_at timestamptz not null default now()
 );

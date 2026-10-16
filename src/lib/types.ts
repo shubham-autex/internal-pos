@@ -66,6 +66,8 @@ export type Order = {
   /** UPI VPA shown when marked paid; null for cash. */
   upi_id: string | null;
   upi_name: string | null;
+  /** Optional customer mobile captured at checkout. */
+  customer_mobile: string | null;
   status: string;
   created_at: string;
 };

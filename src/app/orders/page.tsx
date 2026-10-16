@@ -42,6 +42,7 @@ export default async function OrdersPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">When</th>
                 <th className="px-4 py-3 font-medium">Pay</th>
+                <th className="px-4 py-3 font-medium">Mobile</th>
                 <th className="px-4 py-3 font-medium">Total</th>
                 <th className="px-4 py-3 font-medium">Profit</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -72,6 +73,9 @@ export default async function OrdersPage() {
                         ) : null}
                       </div>
                     )}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums">
+                    {order.customer_mobile || "—"}
                   </td>
                   <td className="px-4 py-3 font-semibold">
                     {formatINR(Number(order.total))}

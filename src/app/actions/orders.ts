@@ -30,6 +30,20 @@ const orderSchema = z.object({
   /** UPI VPA / payee name shown on the QR when marking paid. */
   upiId: z.string().trim().min(1).optional().nullable(),
   upiName: z.string().trim().optional().nullable(),
+  customerMobile: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((value) => {
+      const digits = (value ?? "").replace(/\D/g, "");
+      if (!digits) return null;
+      if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+      if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
+      return digits;
+    })
+    .refine((value) => value === null || /^[6-9]\d{9}$/.test(value), {
+      message: "Enter a 10-digit mobile number",
+    }),
 });
 
 export type CreateOrderResult =
@@ -61,6 +75,7 @@ export async function createOrder(
     cashTendered,
     upiId,
     upiName,
+    customerMobile,
   } = parsed.data;
   const totals = computeCartTotals(
     items.map((item) => ({
@@ -252,6 +267,7 @@ export async function createOrder(
       upi_id: paymentMethod === "upi" ? upiId ?? null : null,
       upi_name:
         paymentMethod === "upi" ? (upiName?.trim() || upiId || null) : null,
+      customer_mobile: customerMobile,
       status: "paid",
     })
     .select("id")

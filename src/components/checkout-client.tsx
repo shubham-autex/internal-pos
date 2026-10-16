@@ -24,6 +24,7 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
   const [mode, setMode] = useState<"upi" | "cash">("upi");
   const [selectedUpiId, setSelectedUpiId] = useState(accounts[0]?.id ?? "");
   const [cashTendered, setCashTendered] = useState("");
+  const [customerMobile, setCustomerMobile] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +77,7 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
       cashTendered: method === "cash" ? tendered : null,
       upiId: method === "upi" ? selectedUpi?.id ?? null : null,
       upiName: method === "upi" ? selectedUpi?.name ?? null : null,
+      customerMobile: customerMobile.trim() || null,
     });
     setBusy(false);
     if (!result.ok) {
@@ -105,6 +107,11 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
             ? "Cash"
             : `UPI · ${done.upiName ?? ""}${done.upiId ? ` · ${done.upiId}` : ""}`}
         </p>
+        {customerMobile.trim() ? (
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            {customerMobile.trim()}
+          </p>
+        ) : null}
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <Link
             href="/"
@@ -254,6 +261,23 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
         <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold sm:text-xl">
           Payment
         </h2>
+        <label className="mt-3 block">
+          <span className="mb-1.5 block text-sm font-medium">
+            Mobile number{" "}
+            <span className="font-normal text-[var(--ink-muted)]">optional</span>
+          </span>
+          <input
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            name="customer_mobile"
+            value={customerMobile}
+            onChange={(e) => setCustomerMobile(e.target.value)}
+            maxLength={14}
+            className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            placeholder="10-digit number"
+          />
+        </label>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
