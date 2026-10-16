@@ -122,6 +122,12 @@ create policy "Authenticated staff can insert orders"
   to authenticated
   with check (auth.uid() = staff_id);
 
+create policy "Authenticated staff can update orders"
+  on public.orders for update
+  to authenticated
+  using (true)
+  with check (true);
+
 create policy "Authenticated staff can read order items"
   on public.order_items for select
   to authenticated

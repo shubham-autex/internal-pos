@@ -5,42 +5,110 @@ import { Sheet } from "@/components/sheet";
 import { useCart } from "@/components/cart-provider";
 import { CartTotalsSummary } from "@/components/cart-totals-summary";
 import { computeCartTotals } from "@/lib/cart-math";
-import { formatINR } from "@/lib/money";
+import { floorPercent, formatINR, netSellPrice, roundMoney } from "@/lib/money";
 
 type ProfitSheetProps = {
   open: boolean;
   onClose: () => void;
 };
 
+/** FE-only: new selling price → surge = max(0, newSell − net after product discount). */
+function surgeFromNewSell(newSellRaw: string, unitNet: number) {
+  const trimmed = newSellRaw.trim();
+  if (!trimmed) return 0;
+  const newSell = Number(trimmed);
+  if (!Number.isFinite(newSell)) return 0;
+  return roundMoney(Math.max(0, newSell - unitNet));
+}
+
 export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
-  const { items, discountAmount, discountPercent, totals, setDiscounts } = useCart();
+  const { items, discountAmount, discountPercent, totals, setDiscounts, setItemSurges } =
+    useCart();
   const [amount, setAmount] = useState(String(discountAmount || ""));
   const [percent, setPercent] = useState(String(discountPercent || ""));
+  /** Draft new selling price per line (UI); converted to surgePrice on preview/apply. */
+  const [sellDraft, setSellDraft] = useState<Record<string, string>>({});
   const [justApplied, setJustApplied] = useState(false);
-  const [itemsOpen, setItemsOpen] = useState(false);
+  const [itemsOpen, setItemsOpen] = useState(true);
+
+  const unitNetById = useMemo(
+    () =>
+      Object.fromEntries(
+        items.map((item) => [
+          item.productId,
+          netSellPrice(item.sellPrice, floorPercent(item.discountPercent)),
+        ]),
+      ),
+    [items],
+  );
 
   useEffect(() => {
     if (!open) return;
     setAmount(String(discountAmount || ""));
     setPercent(String(discountPercent || ""));
+    setSellDraft(
+      Object.fromEntries(
+        items.map((item) => {
+          const unitNet = netSellPrice(
+            item.sellPrice,
+            floorPercent(item.discountPercent),
+          );
+          const charged = roundMoney(unitNet + (item.surgePrice || 0));
+          // Show charged price when a custom sell was applied; else leave blank.
+          return [
+            item.productId,
+            item.surgePrice > 0 ? String(charged) : "",
+          ];
+        }),
+      ),
+    );
     setJustApplied(false);
-    setItemsOpen(false);
-  }, [open, discountAmount, discountPercent]);
+    setItemsOpen(true);
+  }, [open, discountAmount, discountPercent, items]);
 
   const draftAmount = Number(amount) || 0;
   const draftPercent = Number(percent) || 0;
+  const draftSurges = useMemo(
+    () =>
+      Object.fromEntries(
+        items.map((item) => [
+          item.productId,
+          surgeFromNewSell(
+            sellDraft[item.productId] ?? "",
+            unitNetById[item.productId] ?? 0,
+          ),
+        ]),
+      ),
+    [items, sellDraft, unitNetById],
+  );
+
+  const previewItems = useMemo(
+    () =>
+      items.map((item) => ({
+        ...item,
+        surgePrice: draftSurges[item.productId] ?? 0,
+      })),
+    [items, draftSurges],
+  );
 
   const preview = useMemo(
-    () => computeCartTotals(items, draftAmount, draftPercent),
-    [items, draftAmount, draftPercent],
+    () => computeCartTotals(previewItems, draftAmount, draftPercent),
+    [previewItems, draftAmount, draftPercent],
+  );
+
+  const surgesChanged = items.some(
+    (item) => (draftSurges[item.productId] ?? 0) !== (item.surgePrice || 0),
   );
 
   const hasPendingChanges =
-    draftAmount !== discountAmount || draftPercent !== discountPercent;
+    draftAmount !== discountAmount ||
+    draftPercent !== discountPercent ||
+    surgesChanged;
 
   function applyDiscounts(event: FormEvent) {
     event.preventDefault();
     setDiscounts(draftAmount, draftPercent);
+    setItemSurges(draftSurges);
     setJustApplied(true);
     window.setTimeout(() => setJustApplied(false), 1000);
     // delay closing the sheet to allow the user to see the applied discount
@@ -54,7 +122,7 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
       <div className="space-y-4">
         <p className="text-sm text-[var(--ink-muted)]">
           Product catalog discounts are included automatically. Add extra fixed ₹
-          or % off the cart below, preview, then Apply.
+          or % off the cart, or set a new sell price per line, then Apply.
         </p>
 
         <form
@@ -85,11 +153,74 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
             </label>
           </div>
 
+          <div className="mt-4 border-t border-[var(--line)] pt-4">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="font-semibold">New sell price (optional)</h3>
+                <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
+                  Enter the price to charge per unit. Extra over the discounted
+                  price is stored as surge.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setItemsOpen((v) => !v)}
+                className="shrink-0 text-sm font-medium text-[var(--ink-muted)]"
+                aria-expanded={itemsOpen}
+              >
+                {itemsOpen ? "Hide" : "Show"}
+              </button>
+            </div>
+
+            {itemsOpen ? (
+              <ul className="mt-3 space-y-2">
+                {items.map((item) => {
+                  const unitNet = unitNetById[item.productId] ?? 0;
+                  const draftSurge = draftSurges[item.productId] ?? 0;
+                  return (
+                    <li
+                      key={item.productId}
+                      className="flex items-center gap-3 rounded-xl bg-[var(--surface-muted)] px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{item.name}</p>
+                        <p className="text-xs text-[var(--ink-muted)]">
+                          {item.qty}× · now {formatINR(unitNet)}
+                          {draftSurge > 0
+                            ? ` · +${formatINR(draftSurge)} surge`
+                            : ""}
+                        </p>
+                      </div>
+                      <label className="shrink-0">
+                        <span className="sr-only">
+                          New sell price for {item.name}
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder={String(unitNet)}
+                          value={sellDraft[item.productId] ?? ""}
+                          onChange={(e) =>
+                            setSellDraft((prev) => ({
+                              ...prev,
+                              [item.productId]: e.target.value,
+                            }))
+                          }
+                          className="w-28 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 py-2 text-right text-sm tabular-nums outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                        />
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
+
           <div className="mt-3 rounded-xl bg-[var(--surface-muted)] p-3 text-sm">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
               Live preview
             </p>
-            <CartTotalsSummary totals={preview} showListSubtotal />
+            <CartTotalsSummary totals={preview} showListSubtotal showSurge />
             <dl className="mt-3 space-y-1.5 border-t border-[var(--line)] pt-3">
               <div className="flex justify-between">
                 <dt className="text-[var(--ink-muted)]">Cost</dt>
@@ -111,80 +242,70 @@ export function ProfitSheet({ open, onClose }: ProfitSheetProps) {
             className="mt-3 w-full rounded-xl bg-[var(--accent)] px-4 py-3.5 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-50"
             disabled={!hasPendingChanges}
           >
-            {hasPendingChanges ? "Apply discount" : "Applied"}
+            {hasPendingChanges ? "Apply" : "Applied"}
           </button>
           {justApplied ? (
             <p className="mt-2 text-center text-sm font-medium text-emerald-800">
-              Discount applied.
+              Discount & sell prices applied.
             </p>
           ) : null}
         </form>
 
         <div className="rounded-2xl border border-[var(--line)]">
-          <button
-            type="button"
-            onClick={() => setItemsOpen((v) => !v)}
-            className="flex w-full items-center justify-between gap-3 px-3 py-3.5 text-left sm:px-4"
-            aria-expanded={itemsOpen}
-          >
-            <div>
-              <p className="font-semibold">Items</p>
-              <p className="text-xs text-[var(--ink-muted)]">
-                {totals.lines.length} line{totals.lines.length === 1 ? "" : "s"} · tap
-                to {itemsOpen ? "hide" : "show"}
-              </p>
-            </div>
-            <span className="text-lg font-semibold text-[var(--ink-muted)]" aria-hidden>
-              {itemsOpen ? "−" : "+"}
-            </span>
-          </button>
-
-          {itemsOpen ? (
-            <div className="space-y-2 border-t border-[var(--line)] px-3 py-3 sm:px-4">
-              {totals.lines.map((line) => (
-                <div
-                  key={line.productId}
-                  className="rounded-xl bg-[var(--surface-muted)] px-3 py-2.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="break-words font-medium leading-snug">
-                        {line.name}
-                      </p>
-                      <p className="text-xs text-[var(--ink-muted)]">
-                        {line.qty}× · {line.sku}
-                        {line.discountPercent > 0
-                          ? ` · ${line.discountPercent}% product off`
-                          : ""}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-[var(--accent-ink)]">
-                      {formatINR(line.lineProfit)} profit
+          <div className="px-3 py-3 sm:px-4">
+            <p className="font-semibold">Item profit</p>
+            <p className="text-xs text-[var(--ink-muted)]">
+              {totals.lines.length} line{totals.lines.length === 1 ? "" : "s"} (applied
+              values)
+            </p>
+          </div>
+          <div className="space-y-2 border-t border-[var(--line)] px-3 py-3 sm:px-4">
+            {totals.lines.map((line) => (
+              <div
+                key={line.productId}
+                className="rounded-xl bg-[var(--surface-muted)] px-3 py-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="break-words font-medium leading-snug">
+                      {line.name}
+                    </p>
+                    <p className="text-xs text-[var(--ink-muted)]">
+                      {line.qty}× · {line.sku}
+                      {line.discountPercent > 0
+                        ? ` · ${line.discountPercent}% product off`
+                        : ""}
+                      {line.surgePrice > 0
+                        ? ` · sell ${formatINR(line.unitChargedPrice)}`
+                        : ""}
                     </p>
                   </div>
-                  <div className="mt-1 flex flex-wrap justify-between gap-x-2 gap-y-0.5 text-xs text-[var(--ink-muted)]">
-                    <span>
-                      Sell {formatINR(line.lineTotal)}
-                      {line.lineProductDiscount > 0
-                        ? ` (was ${formatINR(line.lineListTotal)})`
-                        : ""}
-                    </span>
-                    <span>Cost {formatINR(line.lineCost)}</span>
-                    <span>
-                      Exp {formatINR(line.lineExpense)}
-                      {line.expensePercent > 0 ? ` (${line.expensePercent}%)` : ""}
-                    </span>
-                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-[var(--accent-ink)]">
+                    {formatINR(line.lineProfit)} profit
+                  </p>
                 </div>
-              ))}
-            </div>
-          ) : null}
+                <div className="mt-1 flex flex-wrap justify-between gap-x-2 gap-y-0.5 text-xs text-[var(--ink-muted)]">
+                  <span>
+                    Sell {formatINR(line.lineTotal)}
+                    {line.lineProductDiscount > 0
+                      ? ` (was ${formatINR(line.lineListTotal)})`
+                      : ""}
+                  </span>
+                  <span>Cost {formatINR(line.lineCost)}</span>
+                  <span>
+                    Exp {formatINR(line.lineExpense)}
+                    {line.expensePercent > 0 ? ` (${line.expensePercent}%)` : ""}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="rounded-2xl border border-[var(--line)] p-3 sm:p-4">
           <h3 className="font-semibold">Applied on checkout</h3>
           <div className="mt-3">
-            <CartTotalsSummary totals={totals} showListSubtotal />
+            <CartTotalsSummary totals={totals} showListSubtotal showSurge />
           </div>
           <dl className="mt-3 space-y-1.5 border-t border-[var(--line)] pt-3 text-sm">
             <div className="flex justify-between">

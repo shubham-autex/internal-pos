@@ -17,6 +17,7 @@ const orderSchema = z.object({
         costPrice: z.number(),
         expensePercent: z.number().min(0).max(100).optional().default(0),
         discountPercent: z.number().min(0).max(100).optional().default(0),
+        surgePrice: z.number().min(0).optional().default(0),
         qty: z.number().int().positive(),
         stock: z.number().int().nonnegative().optional(),
       }),
@@ -66,6 +67,7 @@ export async function createOrder(
       ...item,
       expensePercent: item.expensePercent ?? 0,
       discountPercent: item.discountPercent ?? 0,
+      surgePrice: item.surgePrice ?? 0,
       stock: item.stock ?? 0,
     })),
     discountAmount,
@@ -266,7 +268,7 @@ export async function createOrder(
       product_name: line.name,
       sku: line.sku,
       quantity: line.qty,
-      unit_sell_price: line.sellPrice,
+      unit_sell_price: line.unitChargedPrice,
       unit_cost_price: line.costPrice,
       line_total: line.lineTotal,
       line_cost: line.lineCost,
@@ -303,4 +305,132 @@ export async function createOrder(
   revalidatePath("/products");
   revalidatePath("/dashboard");
   return { ok: true, orderId: order.id };
+}
+
+export type CancelOrderResult = { ok: true } | { ok: false; error: string };
+
+export async function cancelOrder(orderId: string): Promise<CancelOrderResult> {
+  if (!z.string().uuid().safeParse(orderId).success) {
+    return { ok: false, error: "Invalid order" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "You must be signed in" };
+  }
+
+  // Claim the order first so a double click can't restock twice.
+  const { data: claimed, error: claimError } = await supabase
+    .from("orders")
+    .update({ status: "cancelled" })
+    .eq("id", orderId)
+    .eq("status", "paid")
+    .select("id");
+
+  if (claimError) {
+    return { ok: false, error: claimError.message };
+  }
+  if (!claimed || claimed.length === 0) {
+    return { ok: false, error: "Order not found or already cancelled" };
+  }
+
+  const revert = () =>
+    supabase.from("orders").update({ status: "paid" }).eq("id", orderId);
+
+  const { data: items, error: itemsError } = await supabase
+    .from("order_items")
+    .select("product_id, quantity")
+    .eq("order_id", orderId);
+  if (itemsError) {
+    await revert();
+    return { ok: false, error: itemsError.message };
+  }
+
+  const lineIds = [
+    ...new Set(
+      (items ?? [])
+        .map((row) => row.product_id as string | null)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const restock = new Map<string, number>();
+  const add = (id: string, qty: number) =>
+    restock.set(id, (restock.get(id) ?? 0) + qty);
+
+  if (lineIds.length > 0) {
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id, kind")
+      .in("id", lineIds);
+    if (productsError) {
+      await revert();
+      return { ok: false, error: productsError.message };
+    }
+    const comboIds = new Set(
+      (products ?? [])
+        .filter((p) => p.kind === "combo")
+        .map((p) => String(p.id)),
+    );
+
+    const bom = new Map<string, Array<{ id: string; qty: number }>>();
+    if (comboIds.size > 0) {
+      const { data: bomRows, error: bomError } = await supabase
+        .from("product_components")
+        .select("combo_id, component_id, quantity")
+        .in("combo_id", [...comboIds]);
+      if (bomError) {
+        await revert();
+        return { ok: false, error: bomError.message };
+      }
+      for (const row of bomRows ?? []) {
+        const key = String(row.combo_id);
+        const list = bom.get(key) ?? [];
+        list.push({
+          id: String(row.component_id),
+          qty: Math.max(1, Math.floor(Number(row.quantity) || 1)),
+        });
+        bom.set(key, list);
+      }
+    }
+
+    for (const row of items ?? []) {
+      if (!row.product_id) continue;
+      const pid = String(row.product_id);
+      const qty = Number(row.quantity) || 0;
+      if (comboIds.has(pid)) {
+        for (const c of bom.get(pid) ?? []) add(c.id, c.qty * qty);
+      } else {
+        add(pid, qty);
+      }
+    }
+  }
+
+  for (const [productId, qty] of restock) {
+    const { data: row, error: readError } = await supabase
+      .from("products")
+      .select("stock")
+      .eq("id", productId)
+      .single();
+    if (readError || !row) continue;
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({ stock: Math.max(0, Math.floor(Number(row.stock) || 0)) + qty })
+      .eq("id", productId);
+    if (updateError) {
+      return {
+        ok: false,
+        error: `Order cancelled but stock restore failed: ${updateError.message}`,
+      };
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath("/orders");
+  revalidatePath("/products");
+  revalidatePath("/dashboard");
+  return { ok: true };
 }

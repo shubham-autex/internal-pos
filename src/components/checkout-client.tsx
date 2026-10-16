@@ -172,8 +172,10 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
           {items.map((item) => {
             const left = Math.max(0, item.stock - item.qty);
             const discPct = floorPercent(item.discountPercent);
+            const surge = roundMoney(Math.max(0, Number(item.surgePrice) || 0));
             const unitNet = netSellPrice(item.sellPrice, discPct);
-            const lineTotal = roundMoney(unitNet * item.qty);
+            const unitCharged = roundMoney(unitNet + surge);
+            const lineTotal = roundMoney(unitCharged * item.qty);
             return (
               <li key={item.productId} className="py-3">
                 <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
@@ -182,14 +184,17 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
                       {item.name}
                     </p>
                     <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-                      {discPct > 0 ? (
+                      {discPct > 0 || surge > 0 ? (
                         <>
-                          <span className="line-through opacity-70">
-                            {formatINR(item.sellPrice)}
-                          </span>{" "}
-                          {formatINR(unitNet)} × {item.qty}
-                          {" · "}
-                          {discPct}% off
+                          {unitCharged !== item.sellPrice ? (
+                            <>
+                              <span className="line-through opacity-70">
+                                {formatINR(item.sellPrice)}
+                              </span>{" "}
+                            </>
+                          ) : null}
+                          {formatINR(unitCharged)} × {item.qty}
+                          {discPct > 0 ? <> · {discPct}% off</> : null}
                           {" · "}
                         </>
                       ) : (

@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { CancelOrderButton } from "@/components/cancel-order-button";
 import { formatINR } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 import type { Order } from "@/lib/types";
@@ -43,11 +44,17 @@ export default async function OrdersPage() {
                 <th className="px-4 py-3 font-medium">Pay</th>
                 <th className="px-4 py-3 font-medium">Total</th>
                 <th className="px-4 py-3 font-medium">Profit</th>
+                <th className="px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr key={order.id} className="border-t border-[var(--line)]">
+                <tr
+                  key={order.id}
+                  className={`border-t border-[var(--line)] ${
+                    order.status === "cancelled" ? "opacity-60" : ""
+                  }`}
+                >
                   <td className="px-4 py-3">
                     {new Date(order.created_at).toLocaleString("en-IN")}
                   </td>
@@ -70,6 +77,15 @@ export default async function OrdersPage() {
                     {formatINR(Number(order.total))}
                   </td>
                   <td className="px-4 py-3">{formatINR(Number(order.profit))}</td>
+                  <td className="px-4 py-3">
+                    {order.status === "paid" ? (
+                      <CancelOrderButton orderId={order.id} />
+                    ) : (
+                      <span className="text-xs font-semibold uppercase text-red-700">
+                        {order.status}
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

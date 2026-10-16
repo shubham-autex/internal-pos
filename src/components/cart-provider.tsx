@@ -32,6 +32,10 @@ type CartContextValue = CartState & {
   removeItem: (productId: string) => void;
   clearCart: () => void;
   setDiscounts: (amount: number, percent: number) => void;
+  /** Set per-unit surge ₹ for a line (0 clears). */
+  setItemSurge: (productId: string, surgePrice: number) => void;
+  /** Replace surge ₹ for many lines at once (e.g. Apply from profit sheet). */
+  setItemSurges: (surges: Record<string, number>) => void;
   getCartQty: (productId: string) => number;
   availableStock: (product: Pick<Product, "id" | "stock">) => number;
 };
@@ -53,6 +57,7 @@ function productToItem(product: Product, qty: number): CartItem {
     costPrice: Number(product.cost_price),
     expensePercent: Number(product.expense_percent) || 0,
     discountPercent: Number(product.discount_percent) || 0,
+    surgePrice: 0,
     qty,
     stock: Math.max(0, Math.floor(Number(product.stock) || 0)),
   };
@@ -76,6 +81,7 @@ function normalizeItem(raw: Partial<CartItem>): CartItem | null {
     costPrice: Number(raw.costPrice) || 0,
     expensePercent: Number(raw.expensePercent) || 0,
     discountPercent: Number(raw.discountPercent) || 0,
+    surgePrice: Math.max(0, Number(raw.surgePrice) || 0),
     qty: clampedQty,
     stock,
   };
@@ -224,6 +230,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const setItemSurge = useCallback((productId: string, surgePrice: number) => {
+    const next = Math.max(0, Number(surgePrice) || 0);
+    setState((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.productId === productId ? { ...item, surgePrice: next } : item,
+      ),
+    }));
+  }, []);
+
+  const setItemSurges = useCallback((surges: Record<string, number>) => {
+    setState((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => ({
+        ...item,
+        surgePrice: Math.max(0, Number(surges[item.productId]) || 0),
+      })),
+    }));
+  }, []);
+
   const totals = useMemo(
     () => computeCartTotals(state.items, state.discountAmount, state.discountPercent),
     [state.items, state.discountAmount, state.discountPercent],
@@ -244,6 +270,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem,
       clearCart,
       setDiscounts,
+      setItemSurge,
+      setItemSurges,
       getCartQty,
       availableStock,
     }),
@@ -256,6 +284,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem,
       clearCart,
       setDiscounts,
+      setItemSurge,
+      setItemSurges,
       getCartQty,
       availableStock,
     ],

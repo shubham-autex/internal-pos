@@ -5,14 +5,28 @@ type CartTotalsSummaryProps = {
   totals: CartTotals;
   /** When true, subtotal row uses list prices before product discounts. */
   showListSubtotal?: boolean;
+  /** Show surge breakdown (info popup only). */
+  showSurge?: boolean;
 };
 
 export function CartTotalsSummary({
   totals,
   showListSubtotal = false,
+  showSurge = false,
 }: CartTotalsSummaryProps) {
   const subtotalLabel = showListSubtotal ? "Subtotal (list)" : "Subtotal";
   const subtotalValue = showListSubtotal ? totals.listSubtotal : totals.subtotal;
+  const showAfterAdjustments =
+    showListSubtotal &&
+    (totals.productDiscountTotal > 0 ||
+      totals.surgeTotal > 0 ||
+      totals.subtotal !== totals.listSubtotal);
+  const afterLabel =
+    showSurge && totals.surgeTotal > 0
+      ? "After discounts & surge"
+      : totals.productDiscountTotal > 0
+        ? "After product discounts"
+        : "Line subtotal";
 
   return (
     <dl className="space-y-2 text-sm">
@@ -26,9 +40,15 @@ export function CartTotalsSummary({
           <dd className="tabular-nums">−{formatINR(totals.productDiscountTotal)}</dd>
         </div>
       ) : null}
-      {showListSubtotal && totals.productDiscountTotal > 0 ? (
+      {showSurge && showListSubtotal && totals.surgeTotal > 0 ? (
         <div className="flex justify-between gap-3">
-          <dt className="text-[var(--ink-muted)]">After product discounts</dt>
+          <dt className="text-[var(--ink-muted)]">Surge</dt>
+          <dd className="tabular-nums">+{formatINR(totals.surgeTotal)}</dd>
+        </div>
+      ) : null}
+      {showAfterAdjustments ? (
+        <div className="flex justify-between gap-3">
+          <dt className="text-[var(--ink-muted)]">{afterLabel}</dt>
           <dd className="tabular-nums">{formatINR(totals.subtotal)}</dd>
         </div>
       ) : null}

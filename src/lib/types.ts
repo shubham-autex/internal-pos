@@ -42,6 +42,8 @@ export type CartItem = {
   expensePercent: number;
   /** Snapshot of product discount % off list sell price (0–100). */
   discountPercent: number;
+  /** Extra ₹ per unit charged on checkout (surge / peak pricing). */
+  surgePrice: number;
   qty: number;
   /** Snapshot of available stock when the item was last synced from a product. */
   stock: number;

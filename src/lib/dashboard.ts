@@ -97,6 +97,7 @@ export async function loadDashboardData(
   let ordersQuery = supabase
     .from("orders")
     .select("id, total, cost_total, profit, payment_method, created_at")
+    .eq("status", "paid")
     .order("created_at", { ascending: false });
 
   if (since) {
