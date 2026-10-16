@@ -1,5 +1,5 @@
 import type { CartTotals } from "@/lib/cart-math";
-import { formatINR } from "@/lib/money";
+import { formatINR, roundMoney } from "@/lib/money";
 
 type CartTotalsSummaryProps = {
   totals: CartTotals;
@@ -7,20 +7,29 @@ type CartTotalsSummaryProps = {
   showListSubtotal?: boolean;
   /** Show surge breakdown (info popup only). */
   showSurge?: boolean;
+  /**
+   * Checkout: treat surge as part of the listed price so the customer
+   * never sees a separate extra charge.
+   */
+  bakeSurge?: boolean;
 };
 
 export function CartTotalsSummary({
   totals,
   showListSubtotal = false,
   showSurge = false,
+  bakeSurge = false,
 }: CartTotalsSummaryProps) {
-  const subtotalLabel = showListSubtotal ? "Subtotal (list)" : "Subtotal";
-  const subtotalValue = showListSubtotal ? totals.listSubtotal : totals.subtotal;
+  const subtotalLabel =
+    showListSubtotal && !bakeSurge ? "Subtotal (list)" : "Subtotal";
+  const subtotalValue = showListSubtotal
+    ? roundMoney(totals.listSubtotal + (bakeSurge ? totals.surgeTotal : 0))
+    : totals.subtotal;
   const showAfterAdjustments =
     showListSubtotal &&
     (totals.productDiscountTotal > 0 ||
-      totals.surgeTotal > 0 ||
-      totals.subtotal !== totals.listSubtotal);
+      (!bakeSurge &&
+        (totals.surgeTotal > 0 || totals.subtotal !== totals.listSubtotal)));
   const afterLabel =
     showSurge && totals.surgeTotal > 0
       ? "After discounts & surge"

@@ -182,6 +182,7 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
             const surge = roundMoney(Math.max(0, Number(item.surgePrice) || 0));
             const unitNet = netSellPrice(item.sellPrice, discPct);
             const unitCharged = roundMoney(unitNet + surge);
+            const unitShown = roundMoney(item.sellPrice + surge);
             const lineTotal = roundMoney(unitCharged * item.qty);
             return (
               <li key={item.productId} className="py-3">
@@ -191,22 +192,20 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
                       {item.name}
                     </p>
                     <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-                      {discPct > 0 || surge > 0 ? (
+                      {unitCharged < unitShown ? (
                         <>
-                          {unitCharged !== item.sellPrice ? (
-                            <>
-                              <span className="line-through opacity-70">
-                                {formatINR(item.sellPrice)}
-                              </span>{" "}
-                            </>
-                          ) : null}
+                          <span className="line-through opacity-70">
+                            {formatINR(unitShown)}
+                          </span>{" "}
                           {formatINR(unitCharged)} × {item.qty}
-                          {discPct > 0 ? <> · {discPct}% off</> : null}
+                          {discPct > 0 && surge <= 0 ? (
+                            <> · {discPct}% off</>
+                          ) : null}
                           {" · "}
                         </>
                       ) : (
                         <>
-                          {formatINR(item.sellPrice)} × {item.qty}
+                          {formatINR(unitShown)} × {item.qty}
                           {" · "}
                         </>
                       )}
@@ -253,7 +252,7 @@ export function CheckoutClient({ upiAccounts }: CheckoutClientProps) {
         </ul>
 
         <div className="mt-4">
-          <CartTotalsSummary totals={totals} showListSubtotal />
+          <CartTotalsSummary totals={totals} showListSubtotal bakeSurge />
         </div>
       </section>
 
